@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <limits.h>
 
-
 typedef struct nodo{
     unsigned int id;
     unsigned int t_ingreso;
@@ -231,8 +230,9 @@ if(descanso){printf("\nEl tiempo de inicio de descanso es un numero aleatorio?\n
     titulos = descanso*3+desercion*4+prioridad;
     int n=3+descanso*2;
     unsigned int horas[n];
+    unsigned int flags[n-1];
     for(int i=0;i<n;i++) horas[i]=0;
-
+    for(int i=0;i<(n-1);i++) flags[i]=0;
     //inicio del menu
 
     int temp=0;
@@ -873,6 +873,4 @@ void mostrarHora(unsigned int segundos)
     int s = segundos % 60;
 
     printf("%03d:%02d:%02d|", h, m, s);}
-
-
 
