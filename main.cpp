@@ -10,54 +10,36 @@ typedef struct nodo{
     struct nodo* detras;
 }nodo;
 
-typedef struct {
-    unsigned int var;
-    unsigned int t;
-    unsigned int tMin;
-    unsigned int tMax;
-}horario;
-
 unsigned int idn=0;
-
 //entrada por menu
+int llegadaRandom=0;
+int t_llegada=45; //si la llegada es constante
+int llegadaMin=30;// si no es constante
+int llegadaMax=50;
 
-horario llegada = {
-    .var = 1,
-    .t = 60,
-    .tMin = 50,
-    .tMax = 70,
-};
-horario servicio = {
-    .var = 1,
-    .t = 60,
-    .tMin = 50,
-    .tMax = 70,
-};
+int servicioRandom=0;
+int t_servicio=50;
+int servicioMax=40;
+int servicioMin=60;
 
 int descanso=1; //activa descanso si es 1, desactiva si es 0
-horario descan = {
-    .var = 1,
-    .t = 60,
-    .tMin = 50,
-    .tMax = 70,
-};
-horario descansan = {
-    .var = 1,
-    .t = 60,
-    .tMin = 50,
-    .tMax = 70,
-};
+int descansoRandom=0;
+int descansoMin = 50;
+int descansoMax = 70;
+int t_descanso=60;
+int descansandoRandom=0;
+int descansandoMin = 50;
+int descansandoMax = 70;
+int t_descansando=60;
 
 int desercion=1 ; //punto 3
-horario deser = {
-    .var = 1,
-    .t = 600,
-    .tMin = 50,
-    .tMax = 70,
-};
+int desercionRandom=0;
+int desercionMin;
+int desercionMax;
+int t_desercion=200;
 int salidas[4]={0,0,0,0};
 
-int prioridad=0; //punto 4
+int prioridad=1; //punto 4
 nodo *frenteA=NULL;
 nodo *finA =NULL;
 int probA = 50;
@@ -68,7 +50,6 @@ int ocupado=0;
 int habilitarClientesMax=0; //si es 1 la simulacion se limita al numero de clientes
 int clientesMaximos=10; //nro de clientes maximos a atender
 int cont=0; //contador de clientes atendidos
-int contDesertores=0;
 int habilitarHorasMax=0;   //si es 1 la simulacion se limita al numero de clientes, solo puede estar activo esta o habilitarClientesMax
 int horaFinSimulacion;
 int descansoAplicado=0;
@@ -77,13 +58,18 @@ int descansoAplicado=0;
 
 nodo *frente = NULL; //primero
 nodo *fin = NULL;     //ultimo
+//*fin->detras = NULL;
 
 void enCola();
 void desencolar();
 unsigned int clientesCola();
 void mostrarEvento();
+unsigned int horaLlegada();
+unsigned int horaServicio();
+unsigned int horaDescanso();
 void proximoEvento();
-unsigned int hora(horario h);
+unsigned int horaDescansando();
+unsigned int horaDesercion();
 unsigned int proximaSalida();
 void procesarAbandono();
 void cuatroSalidasSiguientes();
@@ -91,10 +77,9 @@ void encolaPrioridad(unsigned int horas[]);
 void desencolarPrioridad();
 unsigned int clientesColaPrioridad();
 void mostrarHora(unsigned int segundos);
-void establecerTiempoParados(unsigned int s);
 
 
-int main(){
+void main(){
     srand(time(NULL));
 
     printf("-------MODELO Y SIMULACION DE SISTEMAS------\n");
@@ -211,10 +196,10 @@ if(descanso){printf("\nEl tiempo de inicio de descanso es un numero aleatorio?\n
     if(desercion> 1 || desercion < 0) printf("Opcion no reconocida. Por favor elija una de las opciones provistas:  ");
     }while(desercion> 1 ||desercion< 0);
     if(desercion){printf("\nEl tiempo de abandono de cola es un numero aleatorio?\n0) NO.\n1) SI.\n");
-    do{scanf("%d",&deser.var);
-    if(deser.var > 1 || deser.var < 0) printf("Opcion no reconocida. Por favor elija una de las opciones provistas:  ");
-    }while(deser.var > 1 || deser.var < 0);
-    if(deser.var){
+    do{scanf("%d",&desercionRandom);
+    if(desercionRandom > 1 || desercionRandom < 0) printf("Opcion no reconocida. Por favor elija una de las opciones provistas:  ");
+    }while(desercionRandom > 1 || desercionRandom < 0);
+    if(desercionRandom){
         printf("\nIngrese el tiempo minimo en el que puede abandonar la cola un cliente:  ");
         do{
             scanf("%d",&desercionMin);
@@ -248,7 +233,7 @@ if(descanso){printf("\nEl tiempo de inicio de descanso es un numero aleatorio?\n
     unsigned int horas[n];
     unsigned int flags[n+desercion-1];
     for(int i=0;i<n;i++) horas[i]=0;
-    for(int i=0;i<(n+desercion-1);i++) flags[i]=0;
+    for(int i=0;i<(n-1);i++) flags[i]=0;
     //inicio del menu
 
     int temp=0;
@@ -326,27 +311,25 @@ if(descanso){printf("\nEl tiempo de inicio de descanso es un numero aleatorio?\n
 
     }else servidorEstado=1;
 
-    /*if(ocupado && !servidorEstado){
+    if(ocupado && !servidorEstado){
         printf("\nCuantos segundos le faltan al cliente en puesto de servicio para terminar de ser atendido?\n");
         do{
             scanf("%d",&temp);
             if(temp<0) printf("Ingrese un valor positivo.\n");
         }while(temp<0);
         printf("\n");
-    }*/
+    }
     //fin del menu
-    horas[1] = horas[0] + hora(llegada);
-    if(ocupado)horas[2]= horas[0]+hora(servicio);
-    if(servidorEstado)horas[3] = horas[0] + hora(descan);
-    else horas[4]= horas[0] +hora(descansan);
+    horas[1] = horas[0] + horaLlegada();
+    if(ocupado)horas[2]= horas[0]+horaServicio();
+    if(servidorEstado)horas[3] = horas[0] + horaDescanso();
+    else horas[4]= horas[0] +horaDescansando();
     if(horas[2]<horas[4] && ocupado && !servidorEstado){
         descansoAplicado=1;
         horas[2] = horas[4]+temp;
         }
-    printf("-------------------------------------------------------");
+    printf("---------------------------------------------------");
     for(int i=0;i<titulos;i++)printf("----------");
-    for(int i=0;i<n+desercion-1;i++)printf("---");
-    if(desercion)printf("----");
     printf("\n");
     printf("|H. Actual");
     printf("|H Llegada");
@@ -369,15 +352,6 @@ if(descanso){printf("\nEl tiempo de inicio de descanso es un numero aleatorio?\n
     printf("|Salida N3");
     printf("|Salida N4");
     }
-    printf("|Ll");
-    printf("|FS");
-    if(descanso){
-    printf("|DS");
-    printf("|VT");
-    }
-    if(desercion)printf("|DC");
-    printf("|CLT");
-    if(desercion)printf("|CDC");
     printf("|\n");
     //mostrarEvento(n,horas);
    /* if(servidorEstado){
@@ -385,22 +359,22 @@ if(descanso){printf("\nEl tiempo de inicio de descanso es un numero aleatorio?\n
         if(clientesCola()>0 && !ocupado){
             desencolar();
             ocupado=1;
-            horas[2]=horas[0]+hora(servicio);
-        }else if(clientesCola()>0 && ocupado)horas[2]=horas[0]+hora(servicio);
+            horas[2]=horas[0]+horaServicio();
+        }else if(clientesCola()>0 && ocupado)horas[2]=horas[0]+horaServicio();
     }else{
         if((clientesColaPrioridad()>0 || clientesCola() > 0) && !ocupado){
             desencolarPrioridad();
             ocupado=1;
-            horas[2]=horas[0]+hora(servicio);
-        }else if((clientesColaPrioridad()>0 || clientesCola() > 0) && ocupado)horas[2]=horas[0]+hora(servicio);
+            horas[2]=horas[0]+horaServicio();
+        }else if((clientesColaPrioridad()>0 || clientesCola() > 0) && ocupado)horas[2]=horas[0]+horaServicio();
     }
     }
     else{
-        horas[4] = horas[0]+hora(descansan);
-        if(ocupado) horas[2] = horas[4]+hora(servicio) ;
+        horas[4] = horas[0]+horaDescansando();
+        if(ocupado) horas[2] = horas[4]+horaServicio() ;
     }*/
-    while( habilitarClientesMax && (cont < clientesMaximos)  || habilitarHorasMax && ( horas[0]<horaFinSimulacion ) ){
-    mostrarEvento(n, horas,flags);
+    while(((habilitarClientesMax &&(cont <= clientesMaximos))||habilitarHorasMax&&(horas[0]<horaFinSimulacion))){
+    mostrarEvento(n, horas);
     proximoEvento(n, horas, flags);
     }
     if(habilitarHorasMax){
@@ -413,25 +387,16 @@ if(descanso){printf("\nEl tiempo de inicio de descanso es un numero aleatorio?\n
     }
     if(siguiente==horaFinSimulacion)proximoEvento(n,horas, flags);
     else horas[0]=horaFinSimulacion;
-        mostrarEvento(n,horas,flags);
+        mostrarEvento(n,horas);
     }
-    if(habilitarClientesMax){
-        mostrarEvento(n,horas,flags);
-    }
-printf("-------------------------------------------------------");
+printf("---------------------------------------------------");
     for(int i=0 ;i<titulos;i++)printf("----------");
-    for(int i=0;i<n+desercion-1;i++)printf("---");
-    if(desercion)printf("----");
     printf("\n");
-
-    return 0;
 }
 
-void mostrarEvento(int n, int v[n],int f[n-desercion-1]){
-    printf("-------------------------------------------------------");
+void mostrarEvento(int n, int v[n]){
+    printf("---------------------------------------------------");
     for(int i=0;i<titulos;i++)printf("----------");
-    for(int i=0;i<n+desercion-1;i++)printf("---");
-    if(desercion)printf("----");
     printf("\n|");
     mostrarHora(v[0]);
     mostrarHora(v[1]);
@@ -458,52 +423,56 @@ void mostrarEvento(int n, int v[n],int f[n-desercion-1]){
     if(salidas[2])mostrarHora(salidas[2]); else printf("         |");
     if(salidas[3])mostrarHora(salidas[3]); else printf("         |");
     }
-    for(int i=0;i<(n+desercion-1);i++){
-        printf("%2d|",f[i]);
-    }
-    printf("%3d|", cont);
-    if(desercion)printf("%3d|", contDesertores);
     printf("\n");
 }
 
-unsigned int hora(horario h){
-    if(h.var){
-        unsigned int temp = h.tMin + (rand()% (h.tMax - h.tMin + 1));
+unsigned int horaLlegada(){
+    if(llegadaRandom){
+        int temp = llegadaMin + (rand()% (llegadaMax - llegadaMin + 1));
         return temp;
     }else{
-        return h.t;
+        return t_llegada;
+    }
+}
+
+unsigned int horaServicio(){
+    if(servicioRandom){
+        int temp = servicioMin + (rand() % (servicioMax - servicioMin + 1));
+        return temp;
+    }else{
+        return t_servicio;
     }
 }
 
 void proximoEvento(int n, int v[n], int f[n+desercion-1]){    //v[0] es la hora actual, v1 es la prox llegada, v2 prox fin de servicio
     unsigned int siguiente=INT_MAX;              //v3 es la hora de descanso, v4 es la hora a la que termina el descanso
-    //int indice = -1;
-    for(int i=1;i<n;i++){               //busca el tiempo mas corto
+    int indice = -1;
+    for(int i=0;i<n;i++){               //busca el tiempo mas corto
         if(v[i] > v[0] && v[i] < siguiente){
             siguiente=v[i];
             //indice = i;
         }
-    }
-    unsigned int salida = proximaSalida();
-
-    if(salida < siguiente) siguiente = salida;
-     v[0] = siguiente;
-
-    for (int i=1;i<5;i++){
-        if(siguiente == v[i]) f[i-1]=1;
+        if(i>0 && siguiente == v[i]) f[i-1]=1;
         else f[i-1]=0;
     }
-    if(salida == siguiente)f[4]=1;
-    else f[4]=0;
-
+    unsigned int salida = proximaSalida();
+    if(desercion && salida == siguiente) f[4]=1; else f[4]=0;
+    if(salida < siguiente) siguiente = salida;
+    v[0] = siguiente;
 
     int probabilidad;
     if(prioridad) probabilidad = rand() % 101; else probabilidad = 101;
 
     if(f[0]){   //evento de llegada
-        if(!ocupado && servidorEstado && (clientesCola()<=0 && clientesColaPrioridad() <= 0)){
+        if(!ocupado && servidorEstado && (clientesCola()<=0 || clientesColaPrioridad() <= 0)){
         ocupado = 1;
-        v[2] = v[0] + hora(servicio);
+        if(probabilidad >probA){ // si el valor obtenido es mayor a probA -> cliente tipo B
+           enCola(v);    //encola al que llega
+           }else{ //sino cliente tipo A
+           encolaPrioridad(v);
+           }
+        desencolarPrioridad(v);
+        v[2] = v[0] + horaServicio();
     }else{
         if(probabilidad >probA){ // si el valor obtenido es mayor a probA -> cliente tipo B
            enCola(v);    //encola al que llega
@@ -511,23 +480,22 @@ void proximoEvento(int n, int v[n], int f[n+desercion-1]){    //v[0] es la hora 
            encolaPrioridad(v);
            }
     }
-    v[1] = v[0] + hora(llegada);
+    v[1] = v[0] + horaLlegada();
 }
     if(f[1]){       //evento fin de servicio
         cont++;
-
-    if(clientesColaPrioridad() > 0 || clientesCola() > 0){
         desencolarPrioridad();
-        v[2] = siguiente + hora(servicio); //posible error
+    if(clientesColaPrioridad() > 0 || clientesCola() > 0){
+        v[2] = siguiente + horaServicio();
         ocupado = 1;
     }else{
         ocupado = 0;
-        v[2] = INT_MAX;
+        //v[2] = 0;
     }
     }
     if(f[2] && descanso){ //inicio de descanso
         servidorEstado = 0;
-        v[4] = v[0] + hora(descansan);
+        v[4] = v[0] + horaDescansando();
 
         if(ocupado && !descansoAplicado && v[2] > v[3]){
         v[2] += (v[4] - v[3]);
@@ -537,11 +505,10 @@ void proximoEvento(int n, int v[n], int f[n+desercion-1]){    //v[0] es la hora 
     if(f[3] && descanso){ //fin de descanso
         servidorEstado = 1;
         descansoAplicado = 0;
-        v[3]= v[0] + hora(descan);
+        v[3]= v[0] + horaDescanso();
     }
     if(f[4] && desercion){ //salida de cola
-        procesarAbandono(siguiente);
-        contDesertores++;
+        procesarAbandono(v[0]);
     }
 }
 
@@ -549,11 +516,10 @@ void proximoEvento(int n, int v[n], int f[n+desercion-1]){    //v[0] es la hora 
 
 void enCola(int horas[]){
  nodo *nuevo = malloc(sizeof(nodo));
- idn++;
- nuevo->id = idn;
+ nuevo->id = idn+1;
  nuevo->detras = NULL;
  nuevo->t_ingreso = horas[0];
- nuevo->t_salidaCola = horas[0] + hora(deser);
+ nuevo->t_salidaCola = horas[0] + horaDesercion();
  if(fin == NULL){
     fin = nuevo;
     frente = nuevo;
@@ -585,6 +551,34 @@ unsigned int clientesCola(){
         conteo = conteo->detras;
     }
     return contador;
+}
+
+
+unsigned int horaDescanso(){
+    if(descansoRandom){
+        int temp = descansoMin + (rand() % (descansoMax - descansoMin + 1));
+        return temp;
+    }else{
+        return t_descanso;
+    }
+}
+
+unsigned int horaDescansando(){
+    if(descansandoRandom){
+        int temp = descansandoMin + (rand() % (descansandoMax - descansandoMin + 1));
+        return temp;
+    }else{
+        return t_descansando;
+    }
+}
+
+unsigned int horaDesercion(){
+    if(desercionRandom){
+        int temp = desercionMin + (rand() % (desercionMax - desercionMin + 1));
+        return temp;
+    }else{
+        return t_desercion;
+    }
 }
 
 void desencolarId(int id){
@@ -675,24 +669,18 @@ void procesarAbandono(unsigned int tiempoActual){
 
 void cuatroSalidasSiguientes(){
     unsigned int n = clientesCola();
-    unsigned int nA = clientesColaPrioridad();
     if(n<=0){
         for(int i=0;i<4;i++)salidas[i]=0;
         return;
     }
-    unsigned int auxiliar[n+nA];
+    unsigned int auxiliar[n];
     nodo *temp = frente;
     for(int i=0;i<n;i++){
         auxiliar[i] = temp->t_salidaCola;
         temp = temp->detras;
 }
-    temp = frenteA;
-    for(int i = n; i<(n+nA);i++){
-        auxiliar[i] = temp->t_salidaCola;
-        temp = temp->detras;
-    }
-for (int i = 0; i < (n+nA) - 1; i++) {
-    for (int j = 0; j < (n+nA) - i - 1; j++) {
+for (int i = 0; i < n - 1; i++) {
+    for (int j = 0; j < n - i - 1; j++) {
         if (auxiliar[j] > auxiliar[j+1]) {
             unsigned int tmp = auxiliar[j];
             auxiliar[j] = auxiliar[j+1];
@@ -710,11 +698,10 @@ for (int i = 0; i < (n+nA) - 1; i++) {
 
 void encolaPrioridad(unsigned int horas[]){
     nodo *nuevo = malloc(sizeof(nodo));
-idn++;
- nuevo->id = idn;
+ nuevo->id = idn+1;
  nuevo->detras = NULL;
  nuevo->t_ingreso = horas[0];
- nuevo->t_salidaCola = horas[0] + hora(deser);
+ nuevo->t_salidaCola = horas[0] + horaDesercion();
  if(finA == NULL){
     finA = nuevo;
     frenteA = nuevo;
@@ -763,13 +750,4 @@ void mostrarHora(unsigned int segundos)
     int s = segundos % 60;
 
     printf("%03d:%02d:%02d|", h, m, s);}
-
-
-void establecerTiempoParados(unsigned int s){
-    nodo *temp = frente;
-    while(temp != NULL){
-        temp->t_salidaCola = hora(deser) - s;
-        temp=temp->detras;
-    }
-}
 

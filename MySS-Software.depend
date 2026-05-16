@@ -1,0 +1,7 @@
+# depslib dependency file v1.0
+1778276547 source:c:\users\agunt\documents\myss-software\main.c
+	<stdio.h>
+	<time.h>
+	<stdlib.h>
+	<limits.h>
+
