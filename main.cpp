@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <queue>
+#include <vector>
 
 class Cliente{
 public:
@@ -17,7 +18,7 @@ public:
     p = establecerPrioridad(probVal);
     zonaSeguridad = zs;
     }
-    
+
 };
 
 class PuestoServicio{
@@ -28,13 +29,17 @@ public:
     int contClientes = 0;
     Cliente* clienteActual;
     queue<Cliente*>* colaDestino;
-    int nColaDestino=0;   
+    int nColaDestino=0;
     queue<Cliente*>* destinoLlegada;
     int nDestinoLlegada=0;
+
+    ZonaSeguridad* zsAsociada;//asociacion simple
+    vector<ZonaSeguridad*> zonasAsociadas;//asociacion multiple
 
     PuestoServicio(bool o, bool fin){
         ocupado = o;
         esFin = fin;
+        zsAsociada = nullptr; //puesto inicio no tiene zona asociada
         contPS++;
     }
 
@@ -55,7 +60,7 @@ public:
         }
     }
     void AnadirDestinoCliente(queue<Cliente*>* direccion){
-        destinos.push_back(direccion);
+        destinos.push_back(direccion);// destinos no exite----> colaDestino
         nColaDestino++;
     }
 
@@ -64,8 +69,56 @@ public:
         nDestinoLlegada++;
     }
 
-    void recibirCliente
+    void asociarZonaSimple(ZonaSeguridad* zs){ //funcion asociacion simple
+        zsAsociada = zs;
+    }
+    void asociarZonaMultiple(ZonaSeguridad* zs){ //fucnion asociacion multiple
+        zonasAsociadas.push_back(zs);
+    }
+
+    void recibirCliente();
 };
+
+class ZonaSeguridad{
+public:
+
+    int id; //identificar zona o cliente?
+    bool ocupado;
+    Cliente* clienteActual;
+
+    int t_ingreso;
+    int t_salida;
+
+    int contClientes;
+
+    ZonaSeguridad(int identificador){
+        id = identificador;
+        ocupado = false;
+        clienteActual = nullptr;
+
+        t_ingreso = 0;
+        t_salida = 0;
+
+        contClientes = 0;
+    }
+
+    void recibirCliente(Cliente* c, int horaActual){
+        clienteActual = c;
+        ocupado = true;
+
+        t_ingreso = horaActual;
+    }
+
+    void liberarCliente(int horaActual){
+        clienteActual = nullptr;
+        ocupado = false;
+
+        t_salida = horaActual;
+
+        contClientes++;
+    }
+};
+
 
 typedef struct nodo{
     unsigned int id;
