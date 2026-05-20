@@ -3,6 +3,9 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <queue>
+#include <string>
+
+vector<Cola*> direccionDeColas;
 
 class Cliente{
 public:
@@ -19,6 +22,28 @@ public:
     }
     
 };
+
+class Cola{
+public:
+
+    string nombre;
+    queue<Cliente*> clientes;
+    int clientesEnCola;
+    int clientesDesertados;
+
+    Cola(string n){
+        nombre = n;
+        clientesEnCola = 0;
+        clientesDesertados = 0;
+    }
+
+    Cola* inicializarCola(string nombre){
+        Cola* nueva = new Cola(nombre);
+        direccionDeColas.push_back(nueva);
+        cantidadColas++;
+        return nueva;
+    }       //se inicializa una cola -> Cola* nombre = inicializarCola("nombreDeCola"); y guarda la direccion del puntero en la variable nombre
+};          //se agrega un cliente con cola->clientes.push(cliente)
 
 class PuestoServicio{
 public:
@@ -145,9 +170,7 @@ int descansoAplicado=0;
 nodo *frente = NULL; //primero
 nodo *fin = NULL;     //ultimo
 
-void enCola();
-void desencolar();
-unsigned int clientesCola();
+
 void mostrarEvento();
 void proximoEvento();
 unsigned int hora(horario h);
