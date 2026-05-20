@@ -29,6 +29,8 @@ public:
     bool ocupado;
     bool esFin;
     int contClientes = 0;
+    int tiempoOcupado=0;
+    int cantidadDescansos=0;
     Cliente* clienteActual;
     queue<Cliente*>* colaDestino;
     int nColaDestino=0;
@@ -92,6 +94,7 @@ public:
     int t_salida;
 
     int contClientes;
+    int tiempoOcupada=0; //añadido para estadistica
 
     ZonaSeguridad(int identificador){
         id = identificador;
@@ -123,8 +126,11 @@ public:
 
 queue<Cliente*>cola; //variables globales de funciones
 queue<Cliente*> colaPrioridad;
+
 int salidas[4]={0,0,0,0};
 Cliente* clienteActual = nullptr;
+
+int maxCola = 0;
 
 typedef struct nodo{
     unsigned int id;
@@ -476,6 +482,10 @@ void enCola(int horas[]){
 
     Cliente* nuevo = new Cliente(horas[0], probA, false);
     cola.push(nuevo);
+
+    if(cola.size() > maxCola){
+        maxCola = cola.size();
+    }
 }
 
 void desencolar(){ //usa misma variable global
@@ -486,6 +496,7 @@ void desencolar(){ //usa misma variable global
 
     delete temp;
 }
+
 unsigned int clientesCola(){
 
     return cola.size();
@@ -500,6 +511,7 @@ void desencolarId(int id){ //usa colaPrioridad
         colaPrioridad.pop();
 
         if(actual->id == id){
+            contDesertores++;
             delete actual;
         }else{
             auxiliar.push(actual);
@@ -512,6 +524,7 @@ void desencolarId(int id){ //usa colaPrioridad
         cola.pop();
 
         if(actual->id == id){
+            contDesertores++;
             delete actual;
         }else{
             auxiliar.push(actual);
@@ -658,6 +671,10 @@ void encolaPrioridad(unsigned int horas[]){
 
     Cliente* nuevo = new Cliente(horas[0], probA, false);
     colaPrioridad.push(nuevo);
+
+    if(colaPrioridad.size() > maxCola){
+        maxCola = colaPrioridad.size();
+    }
 }
 
 void desencolarPrioridad(){//mismas variables globales
