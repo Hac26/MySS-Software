@@ -5,6 +5,8 @@
 #include <queue>
 #include <vector>
 
+class ZonaSeguridad;
+
 class Cliente{
 public:
     unsigned int id;
@@ -119,6 +121,10 @@ public:
     }
 };
 
+queue<Cliente*>cola; //variables globales de funciones
+queue<Cliente*> colaPrioridad;
+int salidas[4]={0,0,0,0};
+Cliente* clienteActual = nullptr;
 
 typedef struct nodo{
     unsigned int id;
@@ -350,288 +356,345 @@ unsigned int hora(horario h){
     }
 }
 
-void proximoEvento(int n, int v[n], int f[n+desercion-1]){    //v[0] es la hora actual, v1 es la prox llegada, v2 prox fin de servicio
-    unsigned int siguiente=INT_MAX;              //v3 es la hora de descanso, v4 es la hora a la que termina el descanso
-    //int indice = -1;
-    for(int i=1;i<n;i++){               //busca el tiempo mas corto
+void proximoEvento(int n, int v[n], int f[n+desercion-1]){
+
+    unsigned int siguiente = INT_MAX;
+
+    for(int i=1; i<n; i++){
         if(v[i] > v[0] && v[i] < siguiente){
-            siguiente=v[i];
-            //indice = i;
+            siguiente = v[i];
         }
     }
+
     unsigned int salida = proximaSalida();
 
-    if(salida < siguiente) siguiente = salida;
-     v[0] = siguiente;
+    if(salida < siguiente)
+        siguiente = salida;
 
-    for (int i=1;i<5;i++){
-        if(siguiente == v[i]) f[i-1]=1;
-        else f[i-1]=0;
+    v[0] = siguiente;
+
+    for(int i=1; i<5; i++){
+        if(siguiente == v[i])
+            f[i-1] = 1;
+        else
+            f[i-1] = 0;
     }
-    if(salida == siguiente)f[4]=1;
-    else f[4]=0;
-
+    if(salida == siguiente)
+        f[4] = 1;
+    else
+        f[4] = 0;
 
     int probabilidad;
-    if(prioridad) probabilidad = rand() % 101; else probabilidad = 101;
 
-    if(f[0]){   //evento de llegada
-        if(!ocupado && servidorEstado && (clientesCola()<=0 && clientesColaPrioridad() <= 0)){
-        ocupado = 1;
-        v[2] = v[0] + hora(servicio);
-    }else{
-        if(probabilidad >probA){ // si el valor obtenido es mayor a probA -> cliente tipo B
-           enCola(v);    //encola al que llega
-           }else{ //sino cliente tipo A
-           encolaPrioridad(v);
-           }
+    if(prioridad)
+        probabilidad = rand() % 101;
+    else
+        probabilidad = 101;
+
+    // EVENTO DE LLEGADA
+    if(f[0]){
+
+        Cliente* nuevoCliente = new Cliente(v[0], probA, false);
+
+        if(!ocupado && servidorEstado &&
+           (cola.empty() && colaPrioridad.empty())){
+
+            ocupado = 1;
+
+            clienteActual = nuevoCliente;
+
+            v[2] = v[0] + hora(servicio);
+
+        }else{
+
+            if(nuevoCliente->p){
+                colaPrioridad.push(nuevoCliente);
+            }else{
+                cola.push(nuevoCliente);
+            }
+        }
+
+        v[1] = v[0] + hora(llegada);
     }
-    v[1] = v[0] + hora(llegada);
-}
-    if(f[1]){       //evento fin de servicio
+    // FIN DE SERVICIO
+    if(f[1]){
+
         cont++;
 
-    if(clientesColaPrioridad() > 0 || clientesCola() > 0){
-        desencolarPrioridad();
-        v[2] = siguiente + hora(servicio); //posible error
-        ocupado = 1;
-    }else{
-        ocupado = 0;
-        v[2] = INT_MAX;
-    }
-    }
-    if(f[2] && descanso){ //inicio de descanso
-        servidorEstado = 0;
-        v[4] = v[0] + hora(descansan);
+        if(clienteActual != nullptr){
+            delete clienteActual;
+            clienteActual = nullptr;
+        }
 
-        if(ocupado && !descansoAplicado && v[2] > v[3]){
-        v[2] += (v[4] - v[3]);
-        descansoAplicado=1;
+        if(!colaPrioridad.empty()){
+
+            clienteActual = colaPrioridad.front();
+            colaPrioridad.pop();
+            v[2] = siguiente + hora(servicio);
+            ocupado = 1;
+
+        }else if(!cola.empty()){
+
+            clienteActual = cola.front();
+            cola.pop();
+            v[2] = siguiente + hora(servicio);
+            ocupado = 1;
+
+        }else{
+            ocupado = 0;
+            v[2] = INT_MAX;
         }
     }
-    if(f[3] && descanso){ //fin de descanso
+    // INICIO DESCANSO
+    if(f[2] && descanso){
+
+        servidorEstado = 0;
+        v[4] = v[0] + hora(descansan);
+        if(ocupado && !descansoAplicado && v[2] > v[3]){
+            v[2] += (v[4] - v[3]);
+            descansoAplicado = 1;
+        }
+    }
+    // FIN DESCANSO
+    if(f[3] && descanso){
+
         servidorEstado = 1;
         descansoAplicado = 0;
-        v[3]= v[0] + hora(descan);
+        v[3] = v[0] + hora(descan);
     }
-    if(f[4] && desercion){ //salida de cola
+    // ABANDONO DE COLA
+    if(f[4] && desercion){
+
         procesarAbandono(siguiente);
         contDesertores++;
-    }
+        }
 }
 
 
 
 void enCola(int horas[]){
- nodo *nuevo = malloc(sizeof(nodo));
- idn++;
- nuevo->id = idn;
- nuevo->detras = NULL;
- nuevo->t_ingreso = horas[0];
- nuevo->t_salidaCola = horas[0] + hora(deser);
- if(fin == NULL){
-    fin = nuevo;
-    frente = nuevo;
- }else{
-    fin->detras = nuevo;
-    fin = nuevo;
- }
+
+    Cliente* nuevo = new Cliente(horas[0], probA, false);
+    cola.push(nuevo);
 }
 
-void desencolar(){
-    if (frente == NULL) return; // cola vac a
+void desencolar(){ //usa misma variable global
 
-    nodo *temp = frente;
-    frente = frente->detras;
+    if(cola.empty()) return;
+    Cliente* temp = cola.front();
+    cola.pop();
 
-    if (frente == NULL) {
-        // si la cola qued  vac a, actualizar fin
-        fin = NULL;
-    }
-
-    free(temp); // liberar el nodo que sali
+    delete temp;
 }
-
 unsigned int clientesCola(){
-    nodo *conteo = frente;
-    int contador = 0;
-    while(conteo != NULL){
-        contador++;
-        conteo = conteo->detras;
-    }
-    return contador;
+
+    return cola.size();
 }
 
-void desencolarId(int id){
-    nodo *actual = frenteA;
-    nodo *anterior = NULL;
+void desencolarId(int id){ //usa colaPrioridad
 
-    // Buscar en A
-    while(actual != NULL && actual->id != id){
-        anterior = actual;
-        actual = actual->detras;
-    }
+    queue<Cliente*> auxiliar;
+    while(!colaPrioridad.empty()){
 
-    if(actual != NULL){
-        // Lo encontramos en A
-        if(anterior == NULL){
-            frenteA = actual->detras;
-            if(frenteA == NULL) finA = NULL;
+        Cliente* actual = colaPrioridad.front();
+        colaPrioridad.pop();
+
+        if(actual->id == id){
+            delete actual;
         }else{
-            anterior->detras = actual->detras;
-            if(actual == finA) finA = anterior;
+            auxiliar.push(actual);
         }
-        free(actual);
-        return;
     }
+    colaPrioridad = auxiliar;
+    while(!cola.empty()){
 
-    // Buscar en B
-    actual = frente;
-    anterior = NULL;
+        Cliente* actual = cola.front();
+        cola.pop();
 
-    while(actual != NULL && actual->id != id){
-        anterior = actual;
-        actual = actual->detras;
-    }
-
-    if(actual != NULL){
-        if(anterior == NULL){
-            frente = actual->detras;
-            if(frente== NULL) fin = NULL;
+        if(actual->id == id){
+            delete actual;
         }else{
-            anterior->detras = actual->detras;
-            if(actual == fin) fin = anterior;
+            auxiliar.push(actual);
         }
-        free(actual);
     }
+   cola = auxiliar;
 }
 
-unsigned int proximaSalida(){
+unsigned int proximaSalida(){//mismas variables globales
+
     if(!desercion) return INT_MAX;
+    unsigned int salida = INT_MAX;
+    queue<Cliente*> auxiliar;
 
-    int salida = INT_MAX;
-
-    nodo *temp = frenteA;
-    while(temp != NULL){
-        if(temp->t_salidaCola < salida)
+    while(!colaPrioridad.empty()){
+        Cliente* temp = colaPrioridad.front();
+        colaPrioridad.pop();
+        if(temp->t_salidaCola < salida){
             salida = temp->t_salidaCola;
-        temp = temp->detras;
+        }
+        auxiliar.push(temp);
     }
 
-    temp = frente;
-    while(temp != NULL){
-        if(temp->t_salidaCola < salida)
+    colaPrioridad = auxiliar;
+    while(!cola.empty()){
+        Cliente* temp = cola.front();
+        cola.pop();
+        if(temp->t_salidaCola < salida){
             salida = temp->t_salidaCola;
-        temp = temp->detras;
-    }
+        }
+        auxiliar.push(temp);
+        }
+
+    cola = auxiliar;
 
     return salida;
 }
 
-void procesarAbandono(unsigned int tiempoActual){
-    nodo *temp = frenteA;
+void procesarAbandono(unsigned int tiempoActual){//mismas variables globales
 
-    while(temp != NULL){
+    queue<Cliente*> auxiliar;
+      while(!colaPrioridad.empty()){
+
+        Cliente* temp = colaPrioridad.front();
+        colaPrioridad.pop();
+
         if(temp->t_salidaCola == tiempoActual){
             desencolarId(temp->id);
             return;
         }
-        temp = temp->detras;
-    }
-    temp = frente;
-    while(temp != NULL){
+        auxiliar.push(temp);
+        }
+
+    colaPrioridad = auxiliar;
+
+    while(!cola.empty()){
+
+        Cliente* temp = cola.front();
+        cola.pop();
+
         if(temp->t_salidaCola == tiempoActual){
             desencolarId(temp->id);
             return;
-        }
-        temp = temp->detras;
+            }
+
+        auxiliar.push(temp);
     }
+        cola = auxiliar;
 }
 
 void cuatroSalidasSiguientes(){
+
     unsigned int n = clientesCola();
     unsigned int nA = clientesColaPrioridad();
-    if(n<=0){
-        for(int i=0;i<4;i++)salidas[i]=0;
+
+    if((n+nA) <= 0){
+        for(int i=0; i<4; i++) salidas[i]=0;
         return;
     }
+
     unsigned int auxiliar[n+nA];
-    nodo *temp = frente;
-    for(int i=0;i<n;i++){
-        auxiliar[i] = temp->t_salidaCola;
-        temp = temp->detras;
-}
-    temp = frenteA;
-    for(int i = n; i<(n+nA);i++){
-        auxiliar[i] = temp->t_salidaCola;
-        temp = temp->detras;
+    int indice = 0;
+
+    queue<Cliente*> auxCola;
+    queue<Cliente*> auxPrioridad;
+
+    while(!cola.empty()){
+
+        Cliente* temp = cola.front();
+        cola.pop();
+
+        auxiliar[indice] = temp->t_salidaCola;
+        indice++;
+
+        auxCola.push(temp);
     }
-for (int i = 0; i < (n+nA) - 1; i++) {
-    for (int j = 0; j < (n+nA) - i - 1; j++) {
-        if (auxiliar[j] > auxiliar[j+1]) {
-            unsigned int tmp = auxiliar[j];
-            auxiliar[j] = auxiliar[j+1];
-            auxiliar[j+1] = tmp;
+
+    cola = auxCola;
+
+    while(!colaPrioridad.empty()){
+
+        Cliente* temp = colaPrioridad.front();
+        colaPrioridad.pop();
+
+        auxiliar[indice] = temp->t_salidaCola;
+        indice++;
+
+        auxPrioridad.push(temp);
+    }
+
+    colaPrioridad = auxPrioridad;
+
+    for(int i=0; i<(n+nA)-1; i++){
+        for(int j=0; j<(n+nA)-i-1; j++){
+
+            if(auxiliar[j] > auxiliar[j+1]){
+
+                unsigned int tmp = auxiliar[j];
+                auxiliar[j] = auxiliar[j+1];
+                auxiliar[j+1] = tmp;
+            }
         }
     }
-}
-    if(n>=4){
-    for(int i=0; i<4;i++)salidas[i]=auxiliar[i];
+
+    if((n+nA) >= 4){
+
+        for(int i=0; i<4; i++){
+            salidas[i] = auxiliar[i];
+        }
+
     }else{
-    for(int i=0;i<n;i++)salidas[i]=auxiliar[i];
-    for(int i=n;i<4;i++)salidas[i]=0;
+
+        for(int i=0; i<(n+nA); i++){
+            salidas[i] = auxiliar[i];
+        }
+
+        for(int i=(n+nA); i<4; i++){
+            salidas[i] = 0;
+        }
     }
 }
 
 void encolaPrioridad(unsigned int horas[]){
-    nodo *nuevo = malloc(sizeof(nodo));
-idn++;
- nuevo->id = idn;
- nuevo->detras = NULL;
- nuevo->t_ingreso = horas[0];
- nuevo->t_salidaCola = horas[0] + hora(deser);
- if(finA == NULL){
-    finA = nuevo;
-    frenteA = nuevo;
- }else{
-    finA->detras = nuevo;
-    finA = nuevo;
- }
+
+    Cliente* nuevo = new Cliente(horas[0], probA, false);
+    colaPrioridad.push(nuevo);
 }
 
-void desencolarPrioridad(){
-    nodo *temp;
+void desencolarPrioridad(){//mismas variables globales
 
-    if(frenteA != NULL){
+    Cliente* temp;
 
-        temp = frenteA;
-        frenteA = frenteA->detras;
-        if(frenteA == NULL) finA = NULL;
-
-    }else if(frente != NULL){
-
-        temp = frente;
-        frente = frente->detras;
-        if(frente == NULL) fin = NULL;
-
+    if(!colaPrioridad.empty()){
+        temp = colaPrioridad.front();
+        colaPrioridad.pop();
+    }else if(!cola.empty()){
+        temp = cola.front();
+        cola.pop();
     }else{
         return;
     }
-
-    free(temp);
+    delete temp;
 }
 
-unsigned int clientesColaPrioridad(){
-    nodo *conteo = frenteA;
-    int contador = 0;
-    while(conteo != NULL){
+unsigned int clientesColaPrioridad(){ //10
+
+    queue<Cliente*> auxiliar;
+    unsigned int contador = 0;
+
+    while(!colaPrioridad.empty()){
+
+        Cliente* temp = colaPrioridad.front();
+        colaPrioridad.pop();
+
         contador++;
-        conteo = conteo->detras;
+
+        auxiliar.push(temp);
     }
+    colaPrioridad = auxiliar;
     return contador;
 }
 
-void mostrarHora(unsigned int segundos)
+void mostrarHora(unsigned int segundos)//11 no es necesario modificar
 {
      int h = segundos / 3600;
      int m = (segundos % 3600) / 60;
@@ -641,14 +704,22 @@ void mostrarHora(unsigned int segundos)
 
 
 void establecerTiempoParados(unsigned int s){
-    nodo *temp = frente;
-    while(temp != NULL){
+
+    queue<Cliente*> auxiliar;
+
+    while(!cola.empty()){
+
+        Cliente* temp = cola.front();
+        cola.pop();
+
         temp->t_salidaCola = hora(deser) - s;
-        temp=temp->detras;
-    }
+
+        auxiliar.push(temp);
+     }
+    cola = auxiliar;
 }
 
-bool establecerPrioridad(int probVal){
+bool establecerPrioridad(int probVal){ //13 no necesario modificar
      int probabilidad;
      bool prioridad;
     if(prioridad) probabilidad = rand() % 101; else probabilidad = 101;
