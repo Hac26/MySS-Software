@@ -1,0 +1,265 @@
+#include <iostream>
+#include <vector>
+#include <list>     // Reemplaza a queue para permitir eliminar elementos del medio (Abandonos)
+#include <climits>
+#include <cstdlib>
+#include <ctime>
+
+using namespace std;
+
+struct Horario {
+    int var;
+    int t;
+    int tMin;
+    int tMax;
+};
+
+int calcularTiempo(Horario h) {
+    if (h.var){
+            return h.tMin + (rand() % (h.tMax - h.tMin + 1));
+    }
+    return h.t;
+}
+
+unsigned int idn = 0;
+
+class Cliente {
+public:
+    unsigned int id;
+    int t_llegada;
+    int t_abandono;
+    bool prioridad;
+
+    Cliente(int tiempo_actual, int tiempo_tolerancia, bool es_prioridad) {
+        id = ++idn;
+        t_llegada = tiempo_actual;
+        t_abandono = tiempo_actual + tiempo_tolerancia;
+        prioridad = es_prioridad;
+    }
+};
+
+
+enum TipoEvento {
+    NINGUNO,
+    LLEGADA,
+    FIN_SERVICIO,
+    INICIO_DESCANSO,
+    FIN_DESCANSO,
+    ABANDONO
+};
+
+struct Evento {
+    TipoEvento tipo;
+    int tiempo;
+    Cliente* cliente_implicado;
+};
+
+// Uso de std::list (STL) en lugar de nodos manuales o queues.
+
+list<Cliente*> colaPrioridad;
+list<Cliente*> colaNormal;
+
+Cliente* clienteActual = nullptr;
+bool ocupado = false;
+bool servidorPresente = true;
+
+// Relojes de próximos eventos
+int prox_llegada = 0;
+int prox_fin_servicio = INT_MAX;
+int prox_inicio_descanso = INT_MAX;
+int prox_fin_descanso = INT_MAX;
+
+// Configuraciones
+Horario h_llegada = {1, 60, 50, 70};
+Horario h_servicio = {1, 60, 50, 70};
+int tiempo_tolerancia_abandono = 600;
+int probabilidad_A = 50;
+
+// Estadísticas
+int clientes_atendidos = 0;
+int clientes_desertores = 0;
+
+
+// Función de Detección: Solo lee el estado, no modifica nada.
+
+Evento calcularProximoEvento(int reloj_actual) {
+    Evento e;
+    e.tipo = NINGUNO;
+    e.tiempo = reloj_actual;
+    e.cliente_implicado = nullptr;
+
+    // Revisar si toca abandono (Búsqueda usando STL en la lista)
+
+    for (auto it = colaPrioridad.begin(); it != colaPrioridad.end(); ++it) {
+        if ((*it)->t_abandono == reloj_actual) {
+            e.tipo = ABANDONO;
+            e.cliente_implicado = *it;
+            return e; // Retorna inmediatamente el evento encontrado
+        }
+    }
+    for (auto it = colaNormal.begin(); it != colaNormal.end(); ++it) {
+        if ((*it)->t_abandono == reloj_actual) {
+            e.tipo = ABANDONO;
+            e.cliente_implicado = *it;
+            return e;
+        }
+    }
+
+    // Revisar eventos de estado
+
+    if (prox_fin_descanso == reloj_actual) {
+        e.tipo = FIN_DESCANSO; return e;
+    }
+    if (prox_inicio_descanso == reloj_actual) {
+        e.tipo = INICIO_DESCANSO; return e;
+    }
+    if (prox_fin_servicio == reloj_actual) {
+        e.tipo = FIN_SERVICIO; return e;
+    }
+    if (prox_llegada == reloj_actual) {
+        e.tipo = LLEGADA; return e;
+    }
+
+    return e; // Retorna NINGUNO si no pasa nada en este segundo
+}
+
+// Ejecuta los cambios del sistema
+
+void procesarEvento(Evento e, int reloj_actual) {
+
+    switch (e.tipo) {
+        case ABANDONO: {
+            // saca al cliente directamente sin usar colas auxiliares
+            if (e.cliente_implicado->prioridad) colaPrioridad.remove(e.cliente_implicado);
+            else colaNormal.remove(e.cliente_implicado);
+
+            delete e.cliente_implicado;
+            clientes_desertores++;
+            break;
+        }
+
+        case FIN_DESCANSO: {
+            servidorPresente = true;
+            prox_fin_descanso = INT_MAX;
+            // Programar próximo descanso
+            prox_inicio_descanso = reloj_actual + 7200;
+
+            // Si hay gente esperando, empieza a atender al instante
+            if (!ocupado) {
+                if (!colaPrioridad.empty()) {
+                    clienteActual = colaPrioridad.front();
+                    colaPrioridad.pop_front();
+                    ocupado = true;
+                    prox_fin_servicio = reloj_actual + calcularTiempo(h_servicio);
+                } else if (!colaNormal.empty()) {
+                    clienteActual = colaNormal.front();
+                    colaNormal.pop_front();
+                    ocupado = true;
+                    prox_fin_servicio = reloj_actual + calcularTiempo(h_servicio);
+                }
+            }
+            break;
+        }
+
+        case INICIO_DESCANSO: {
+            servidorPresente = false;
+            prox_inicio_descanso = INT_MAX;
+            prox_fin_descanso = reloj_actual + 600; // Descansa
+
+            if (ocupado && prox_fin_servicio != INT_MAX) {
+                // Pausa el servicio actual y lo estira
+                prox_fin_servicio += 600;
+            }
+            break;
+        }
+
+        case FIN_SERVICIO: {
+            delete clienteActual;
+            clienteActual = nullptr;
+            clientes_atendidos++;
+
+            if (servidorPresente) {
+                if (!colaPrioridad.empty()) {
+                    clienteActual = colaPrioridad.front();
+                    colaPrioridad.pop_front();
+                    prox_fin_servicio = reloj_actual + calcularTiempo(h_servicio);
+                } else if (!colaNormal.empty()) {
+                    clienteActual = colaNormal.front();
+                    colaNormal.pop_front();
+                    prox_fin_servicio = reloj_actual + calcularTiempo(h_servicio);
+                } else {
+                    ocupado = false;
+                    prox_fin_servicio = INT_MAX;
+                }
+            } else {
+                ocupado = false;
+                prox_fin_servicio = INT_MAX;
+            }
+            break;
+        }
+
+        case LLEGADA: {
+            // Programar la siguiente llegada al sistema
+            prox_llegada = reloj_actual + calcularTiempo(h_llegada);
+
+            bool es_prioridad = (rand() % 100) < probabilidad_A;
+            Cliente* nuevoCliente = new Cliente(reloj_actual, tiempo_tolerancia_abandono, es_prioridad);
+
+            if (!ocupado && servidorPresente) {
+                ocupado = true;
+                clienteActual = nuevoCliente;
+                prox_fin_servicio = reloj_actual + calcularTiempo(h_servicio);
+            } else {
+                // STL push_back
+                if (es_prioridad) colaPrioridad.push_back(nuevoCliente);
+                else colaNormal.push_back(nuevoCliente);
+            }
+            break;
+        }
+
+        case NINGUNO:
+            break;
+    }
+}
+
+int main() {
+    srand(time(NULL));
+
+    int limite_simulacion = 3600; // Simular 1 hora
+    prox_llegada = calcularTiempo(h_llegada); // Primera llegada
+
+    cout << "Iniciando simulacion con reloj incremental...\n";
+
+    // RELOJ INCREMENTAL: Avanza segundo a segundo
+    for (int reloj = 0; reloj <= limite_simulacion; reloj++) {
+
+        bool evento_procesado_en_este_segundo;
+
+        do {
+            // 1. Detectar
+            Evento e = calcularProximoEvento(reloj);
+
+            evento_procesado_en_este_segundo = false;
+
+            // 2. Procesar
+            if (e.tipo != NINGUNO) {
+                procesarEvento(e, reloj);
+                evento_procesado_en_este_segundo = true;
+
+                // Mostrar en consola SOLO cuando ocurre un evento para no inundar la pantalla
+                cout << "Tiempo: " << reloj << "s | Evento: " << e.tipo
+                     << " | Ocupado: " << ocupado
+                     << " | Cola VIP: " << colaPrioridad.size()
+                     << " | Cola Normal: " << colaNormal.size() << "\n";
+            }
+
+        // El bucle do-while permite procesar multiples eventos que caigan en el mismo segundo exacto
+        } while (evento_procesado_en_este_segundo);
+    }
+
+    cout << "\n--- RESULTADOS FINALES ---\n";
+    cout << "Clientes atendidos: " << clientes_atendidos << "\n";
+    cout << "Clientes desertores: " << clientes_desertores << "\n";
+
+    return 0;
+}
