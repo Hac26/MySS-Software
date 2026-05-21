@@ -6,185 +6,11 @@
 #include <string>
 #include <vector>
 
+using  namespace std;
 class ZonaSeguridad;
-vector<Cola*> direccionDeColas;
-vector<PuestoServicio*> direccionPS;
-vector<ZonaSeguridad*> direccionZS;     //guardan las direcciones de las colas, PS, ZS para que la interfaz grafica pueda acceder
-
-class Cliente{
-public:
-    unsigned int id;
-    unsigned int t_salidaCola;
-    bool p;
-    int nColaDestino;
-
-    Cliente(unsigned int t_llegada, int probVal){
-    id=++idn;
-    t_salidaCola= t_llegada + hora(deser);
-    p = establecerPrioridad(probVal);
-    }
-
-};
-
-class Cola{
-public:
-
-    string nombre;
-    queue<Cliente*> clientes;
-    int clientesDesertados;
-    bool prioridad;
-    bool ZS;    //true si el destino es un ZS, false para un PS
-    vector<PuestoServicio*> destinosPS;
-    int nDestinoPS;
-    vector<ZonaSeguridad*> destinosZS;
-    int nDestinoZS;
-
-    Cola(string n, bool p, bool zs){
-        nombre = n;
-        bool prioridad = p;
-        ZS = zs;
-        clientesDesertados = 0;
-        nDestinoPS = 0;
-        nDestinoZS = 0;
-    }
-
-    void TransferirCliente(){
-        if(!clientes.empty()){
-            if(ZS){
-                destinosZS[0]->ClienteActual = clientes.front(); //hay que aplicar round robin a estos dos
-            }else{
-                destinosPS[0]->ClienteActual = clientes.front();
-            }
-            clientes.pop();
-        }
-    }
-
-    void AnadirDestinoPS(PuestoServicio* direccion){
-        destinosPS.push_back(direccion);// destinos no exite----> colaDestino
-        nDestinoPS++;
-    }
-
-    void AnadirDestinoZS(ZonaSeguridad* direccion){
-        destinosZS.push_back(direccion);// destinos no exite----> colaDestino
-        nDestinoZS++;
-    }
-
-
-    Cola* inicializarCola(string nombre, bool p, bool zs){
-        Cola* nueva = new Cola(nombre, p, zs);
-        direccionDeColas.push_back(nueva);
-        contColas++;
-        return nueva;
-    }       //se inicializa una cola -> Cola* nombre = inicializarCola("nombreDeCola", prioridad); y guarda la direccion del puntero en la variable nombre
-};          //se agrega un cliente con cola->clientes.push(cliente)
-
-
-
-class PuestoServicio{
-public:
-    string nombre;
-    bool ocupado;
-    bool esFin; // si no le sigue nada
-    int contClientes = 0;
-    int tiempoOcupado=0;
-    int cantidadDescansos=0;
-    Cliente* clienteActual;
-    <queue<Cliente*>* colaDestino;
-    int nColaDestino=0;
-    <queue<Cliente*>* destinoLlegada;
-    int nDestinoLlegada=0;
-
-    ZonaSeguridad* zsAsociada;//asociacion simple
-    vector<ZonaSeguridad*> zonasAsociadas;//asociacion multiple
-
-    PuestoServicio(string n, bool o, bool fin){
-        ocupado = o;
-        esFin = fin;
-        zsAsociada = nullptr; //puesto inicio no tiene zona asociada
-        contPS++;
-    }
-    PuestoServicio* inicializarPS(string nombre, bool o, bool fin){
-        Cola* nueva = new PuestoServicio(nombre, o, fin);
-        direccionPS.push_back(nueva);
-        contPS++;
-        return nueva;
-    }
-    void TransferirCliente(){
-
-        if(clienteActual != nullptr){ //si hay cliente
-            ocupado = false;
-            contClientes++;
-            if(!esFin){  // lleva a otra instancia
-                for(int i=0; i<nColaDestino;i++){   //aplicar RoundRobin
-                colaDestino[i]->push(clienteActual);
-
-                }
-            }else{
-                delete clienteActual;
-            }           
-            clienteActual = nullptr;
-        }
-    }
-    
-    void AnadirDestinoCliente(queue<Cliente*>* direccion){
-      colaDestino.push_back(direccion);
-        nColaDestino++;
-    }
-
-    void AnadirLlegadaCliente(queue<Cliente*>* direccion){
-       destinoLlegada.push_back(direccion);;
-        nDestinoLlegada++;
-    }
-
-    void asociarZonaSimple(ZonaSeguridad* zs){ //funcion asociacion simple
-        zsAsociada = zs;
-    }
-    void asociarZonaMultiple(ZonaSeguridad* zs){ //fucnion asociacion multiple
-        zonasAsociadas.push_back(zs);
-    }
-
-    
-};
-
-class ZonaSeguridad{
-public:
-
-    bool ocupado;
-    Cliente* clienteActual;
-    int t_ingreso;
-    int t_salida;
-
-    int contClientes;
-    int tiempoOcupada=0; //aï¿½adido para estadistica
-
-    ZonaSeguridad(int identificador){
-    ZonaSeguridad(bool o){
-        id = identificador;
-        ocupado = o;
-        clienteActual = nullptr;
-
-        t_ingreso = 0;
-        t_salida = 0;
-
-        contClientes = 0;
-    }
-
-    void recibirCliente(Cliente* c, int horaActual){
-        clienteActual = c;
-        ocupado = true;
-
-        t_ingreso = horaActual;
-    }
-
-    void liberarCliente(int horaActual){
-        clienteActual = nullptr;
-        ocupado = false;
-
-        t_salida = horaActual;
-        tiempoOcupada += (t_salida - t_ingreso);
-        contClientes++;
-    }
-};
+class PuestoServicio;
+class Cliente;
+class Cola;
 
 typedef struct nodo{
     unsigned int id;
@@ -199,6 +25,21 @@ typedef struct {
     unsigned int tMin;
     unsigned int tMax;
 }horario;
+
+unsigned int hora(horario h);
+unsigned int proximaSalida();
+void procesarAbandono();
+void cuatroSalidasSiguientes();
+void encolaPrioridad(unsigned int horas[]);
+void desencolarPrioridad();
+unsigned int clientesColaPrioridad();
+void mostrarHora(unsigned int segundos);
+void establecerTiempoParados(unsigned int s);
+bool establecerPrioridad(int probVal);
+
+vector<Cola*> direccionDeColas;
+vector<PuestoServicio*> direccionPS;
+vector<ZonaSeguridad*> direccionZS;     //guardan las direcciones de las colas, PS, ZS para que la interfaz grafica pueda acceder
 
 unsigned int idn=0;
 
@@ -240,10 +81,6 @@ horario deser = {
 };
 int salidas[4]={0,0,0,0};
 
-int prioridad=0; //punto 4
-nodo *frenteA=NULL;
-nodo *finA =NULL;
-int probA = 50;
 
 queue<Cliente*>cola; //variables globales de funciones
 queue<Cliente*> colaPrioridad;
@@ -254,6 +91,7 @@ int maxCola = 0;
 int tiempoOcupado = 0;
 int cantidadDescansos = 0;
 int inicioServicio = 0;
+int probA;
 
 int servidorEstado=1;
 int titulos;
@@ -271,29 +109,188 @@ int descansoAplicado=0;
 
 //fin de entrada por menu
 
-nodo *frente = NULL; //primero
-nodo *fin = NULL;     //ultimo
 
 
-void mostrarEvento();
-void proximoEvento();
-unsigned int hora(horario h);
-unsigned int proximaSalida();
-void procesarAbandono();
-void cuatroSalidasSiguientes();
-void encolaPrioridad(unsigned int horas[]);
-void desencolarPrioridad();
-unsigned int clientesColaPrioridad();
-void mostrarHora(unsigned int segundos);
-void establecerTiempoParados(unsigned int s);
-bool establecerPrioridad(int probVal);
+class Cliente{
+public:
+    unsigned int id;
+    unsigned int t_salidaCola;
+    bool p;
+    int nColaDestino;
+
+    Cliente(unsigned int t_llegada, int probVal){
+    id=++idn;
+    t_salidaCola= t_llegada + hora(deser);
+    p = establecerPrioridad(probVal);
+    }
+
+};
+
+class PuestoServicio{
+public:
+    string nombre;
+    bool ocupado;
+    bool esFin; // si no le sigue nada
+    int contClientes = 0;
+    int tiempoOcupado=0;
+    int cantidadDescansos=0;
+    Cliente* clienteActual;
+    vector<queue<Cliente*>*> colaDestino;
+    int nColaDestino=0;
+    vector<queue<Cliente*>*> destinoLlegada;
+    int nDestinoLlegada=0;
+
+    ZonaSeguridad* zsAsociada;//asociacion simple
+    vector<ZonaSeguridad*> zonasAsociadas;//asociacion multiple
+
+    PuestoServicio(string n, bool o, bool fin){
+        ocupado = o;
+        esFin = fin;
+        zsAsociada = nullptr; //puesto inicio no tiene zona asociada
+        contPS++;
+    }
+    PuestoServicio* inicializarPS(string nombre, bool o, bool fin){
+        PuestoServicio* nueva = new PuestoServicio(nombre, o, fin);
+        direccionPS.push_back(nueva);
+        contPS++;
+        return nueva;
+    }
+    void TransferirCliente(){
+
+        if(clienteActual != nullptr){ //si hay cliente
+            ocupado = false;
+            contClientes++;
+            if(!esFin){  // lleva a otra instancia
+                for(int i=0; i<nColaDestino;i++){   //aplicar RoundRobin
+                colaDestino[i]->push(clienteActual);
+
+                }
+            }else{
+                delete clienteActual;
+            }
+            clienteActual = nullptr;
+        }
+    }
+
+    void AnadirDestinoCliente(queue<Cliente*>* direccion){
+      colaDestino.push_back(direccion);
+        nColaDestino++;
+    }
+
+
+};
+class ZonaSeguridad {
+public:
+    bool ocupado;
+    Cliente* clienteActual;
+    int t_ingreso;
+    int t_salida;
+    int contClientes;
+    int tiempoOcupada = 0;
+    bool esFin;
+    vector<queue<Cliente*>*> colaDestino;
+    int nColaDestino = 0;
+
+    ZonaSeguridad(bool o, bool fin) {
+        ocupado = o;
+        clienteActual = nullptr;
+        t_ingreso = 0;
+        t_salida = 0;
+        contClientes = 0;
+        esFin = fin; // Asignamos si es el final o no
+    }
+
+    ZonaSeguridad* inicializarZS(bool o, bool fin) {
+        ZonaSeguridad* nueva = new ZonaSeguridad(o, fin);
+        direccionZS.push_back(nueva);
+        contZS++;
+        return nueva;
+    }
+
+    void TransferirCliente(int horaActual) {
+        if (clienteActual != nullptr) {
+
+            contClientes++;
+            ocupado = false;
+
+            if (!esFin) { //si no es fin
+                if (nColaDestino > 0) {
+                    colaDestino->push(clienteActual);//a que cola la transfiere? raund robin?
+                }
+
+            } else {
+                // Si es el fin del recorrido, se destruye el cliente liberando memoria
+                delete clienteActual;
+            }
+
+            // 3. Dejar la zona vacía
+            clienteActual = nullptr;
+        }
+    }
+    //conecta con siguientes zonas
+    void AnadirDestinoCliente(queue<Cliente*>* direccion) {
+        colaDestino.push_back(direccion);
+        nColaDestino++;
+    }
+};
+class Cola{
+    public:
+
+        string nombre;
+        queue<Cliente*> clientes;
+        int clientesDesertados;
+        bool prioridad;
+        bool ZS;    //true si el destino es un ZS, false para un PS
+        vector<PuestoServicio*> destinosPS;
+        int nDestinoPS;
+        vector<ZonaSeguridad*> destinosZS;
+        int nDestinoZS;
+
+        Cola(string n, bool p, bool zs){
+            nombre = n;
+            bool prioridad = p;
+            ZS = zs;
+            clientesDesertados = 0;
+            nDestinoPS = 0;
+            nDestinoZS = 0;
+        }
+
+        void TransferirCliente(){
+            if(!clientes.empty()){
+                if(ZS){
+                    destinosZS[0]->clienteActual = clientes.front(); //hay que aplicar round robin a estos dos
+                }else{
+                    destinosPS[0]->clienteActual = clientes.front();
+                }
+                clientes.pop();
+            }
+        }
+
+    void AnadirDestinoPS(PuestoServicio* direccion){
+        destinosPS.push_back(direccion);// destinos no exite----> colaDestino
+        nDestinoPS++;
+    }
+
+    void AnadirDestinoZS(ZonaSeguridad* direccion){
+        destinosZS.push_back(direccion);// destinos no exite----> colaDestino
+        nDestinoZS++;
+    }
+
+
+    Cola* inicializarCola(string nombre, bool p, bool zs){
+        Cola* nueva = new Cola(nombre, p, zs);
+        direccionDeColas.push_back(nueva);
+        contColas++;
+        return nueva;
+    }       //se inicializa una cola -> Cola* nombre = inicializarCola("nombreDeCola", prioridad); y guarda la direccion del puntero en la variable nombre
+};          //se agrega un cliente con cola->clientes.push(cliente)
 
 
 int main(){
     srand(time(NULL));
 
     printf("-------MODELO Y SIMULACION DE SISTEMAS------\n");
-
+    int prioridad=1; //en desuso, solo esta para que compile el programa
     titulos = descanso*3+desercion*4+prioridad;
     int n=3+descanso*2;
     unsigned int horas[n];
@@ -349,8 +346,8 @@ int main(){
     printf("|\n");
 
     while( habilitarClientesMax && (cont < clientesMaximos)  || habilitarHorasMax && ( horas[0]<horaFinSimulacion ) ){
-    mostrarEvento(n, horas,flags);
-    proximoEvento(n, horas, flags);
+    //mostrarEvento(n, horas);
+    //proximoEvento(n, horas, flags);
     }
     if(habilitarHorasMax){
     unsigned int siguiente=INT_MAX;
@@ -360,12 +357,10 @@ int main(){
             siguiente=horas[i];
         }
     }
-    if(siguiente==horaFinSimulacion)proximoEvento(n,horas, flags);
-    else horas[0]=horaFinSimulacion;
-        mostrarEvento(n,horas,flags);
+        //mostrarEvento(n,horas,flags);
     }
     if(habilitarClientesMax){
-        mostrarEvento(n,horas,flags);
+        //mostrarEvento(n,horas,flags);
     }
 printf("-------------------------------------------------------");
     for(int i=0 ;i<titulos;i++)printf("----------");
@@ -374,45 +369,6 @@ printf("-------------------------------------------------------");
     printf("\n");
 
     return 0;
-}
-
-void mostrarEvento(int n, int v[n],int f[n+desercion-1]){
-    printf("-------------------------------------------------------");
-    for(int i=0;i<titulos;i++)printf("----------");
-    for(int i=0;i<n+desercion-1;i++)printf("---");
-    if(desercion)printf("----");
-    printf("\n|");
-    mostrarHora(v[0]);
-    mostrarHora(v[1]);
-    if(ocupado)mostrarHora(v[2]);
-        else printf("         |");
-     if(descanso){
-    if(servidorEstado)mostrarHora(v[3]);
-    else printf("         |");
-    if(!servidorEstado)mostrarHora(v[4]);
-    else printf("         |");
-    if(servidorEstado)printf("  Activo |"); else printf(" Inactivo|");
-    }
-    if(!prioridad){
-            printf("%9d|", clientesCola());
-    }else{
-        printf("%9d|",clientesColaPrioridad());
-        printf("%9d|",clientesCola());
-    }
-    if(ocupado)printf(" Ocupado |"); else printf("NoOcupado|");
-    if(desercion){
-    cuatroSalidasSiguientes();
-    if(salidas[0])mostrarHora(salidas[0]); else printf("         |");
-    if(salidas[1])mostrarHora(salidas[1]); else printf("         |");
-    if(salidas[2])mostrarHora(salidas[2]); else printf("         |");
-    if(salidas[3])mostrarHora(salidas[3]); else printf("         |");
-    }
-    for(int i=0;i<(n+desercion-1);i++){
-        printf("%2d|",f[i]);
-    }
-    printf("%3d|", cont);
-    if(desercion)printf("%3d|", contDesertores);
-    printf("\n");
 }
 
 unsigned int hora(horario h){
@@ -424,7 +380,7 @@ unsigned int hora(horario h){
     }
 }
 
-void proximoEvento(int n, int v[n], int f[n+desercion-1]){
+/*void proximoEvento(int n, int v[n], int f[5]){
 
     unsigned int siguiente = INT_MAX;
 
@@ -577,6 +533,7 @@ unsigned int clientesCola(){
 
     return cola.size();
 }
+*/
 
 void desencolarId(int id){ //usa colaPrioridad
 
@@ -672,87 +629,8 @@ void procesarAbandono(unsigned int tiempoActual){//mismas variables globales
         cola = auxiliar;
 }
 
-void cuatroSalidasSiguientes(){
 
-    unsigned int n = clientesCola();
-    unsigned int nA = clientesColaPrioridad();
 
-    if((n+nA) <= 0){
-        for(int i=0; i<4; i++) salidas[i]=0;
-        return;
-    }
-
-    unsigned int auxiliar[n+nA];
-    int indice = 0;
-
-    queue<Cliente*> auxCola;
-    queue<Cliente*> auxPrioridad;
-
-    while(!cola.empty()){
-
-        Cliente* temp = cola.front();
-        cola.pop();
-
-        auxiliar[indice] = temp->t_salidaCola;
-        indice++;
-
-        auxCola.push(temp);
-    }
-
-    cola = auxCola;
-
-    while(!colaPrioridad.empty()){
-
-        Cliente* temp = colaPrioridad.front();
-        colaPrioridad.pop();
-
-        auxiliar[indice] = temp->t_salidaCola;
-        indice++;
-
-        auxPrioridad.push(temp);
-    }
-
-    colaPrioridad = auxPrioridad;
-
-    for(int i=0; i<(n+nA)-1; i++){
-        for(int j=0; j<(n+nA)-i-1; j++){
-
-            if(auxiliar[j] > auxiliar[j+1]){
-
-                unsigned int tmp = auxiliar[j];
-                auxiliar[j] = auxiliar[j+1];
-                auxiliar[j+1] = tmp;
-            }
-        }
-    }
-
-    if((n+nA) >= 4){
-
-        for(int i=0; i<4; i++){
-            salidas[i] = auxiliar[i];
-        }
-
-    }else{
-
-        for(int i=0; i<(n+nA); i++){
-            salidas[i] = auxiliar[i];
-        }
-
-        for(int i=(n+nA); i<4; i++){
-            salidas[i] = 0;
-        }
-    }
-}
-
-void encolaPrioridad(unsigned int horas[]){
-
-    Cliente* nuevo = new Cliente(horas[0], probA, false);
-    colaPrioridad.push(nuevo);
-
-    if((cola.size() + colaPrioridad.size()) > maxCola){
-        maxCola = cola.size()+ colaPrioridad.size();
-    }
-}
 
 void desencolarPrioridad(){//mismas variables globales
 
