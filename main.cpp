@@ -3,31 +3,88 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <queue>
+#include <string>
 #include <vector>
 
 class ZonaSeguridad;
+vector<Cola*> direccionDeColas;
+vector<PuestoServicio*> direccionPS;
+vector<ZonaSeguridad*> direccionZS;     //guardan las direcciones de las colas, PS, ZS para que la interfaz grafica pueda acceder
 
 class Cliente{
 public:
     unsigned int id;
     unsigned int t_salidaCola;
     bool p;
-    bool zonaSeguridad; //true si lo lleva a una zona de seguridad, false directo a PS
+    int nColaDestino;
 
-    Cliente(unsigned int t_llegada, int probVal, bool zs){
+    Cliente(unsigned int t_llegada, int probVal){
     id=++idn;
     t_salidaCola= t_llegada + hora(deser);
     p = establecerPrioridad(probVal);
-    zonaSeguridad = zs;
     }
 
 };
 
-class PuestoServicio{
+class Cola{
 public:
 
+    string nombre;
+    queue<Cliente*> clientes;
+    int clientesDesertados;
+    bool prioridad;
+    bool ZS;    //true si el destino es un ZS, false para un PS
+    vector<PuestoServicio*> destinosPS;
+    int nDestinoPS;
+    vector<ZonaSeguridad*> destinosZS;
+    int nDestinoZS;
+
+    Cola(string n, bool p, bool zs){
+        nombre = n;
+        bool prioridad = p;
+        ZS = zs;
+        clientesDesertados = 0;
+        nDestinoPS = 0;
+        nDestinoZS = 0;
+    }
+
+    void TransferirCliente(){
+        if(!clientes.empty()){
+            if(ZS){
+                destinosZS[0]->ClienteActual = clientes.front(); //hay que aplicar round robin a estos dos
+            }else{
+                destinosPS[0]->ClienteActual = clientes.front();
+            }
+            clientes.pop();
+        }
+    }
+
+    void AnadirDestinoPS(PuestoServicio* direccion){
+        destinosPS.push_back(direccion);// destinos no exite----> colaDestino
+        nDestinoPS++;
+    }
+
+    void AnadirDestinoZS(ZonaSeguridad* direccion){
+        destinosZS.push_back(direccion);// destinos no exite----> colaDestino
+        nDestinoZS++;
+    }
+
+
+    Cola* inicializarCola(string nombre, bool p, bool zs){
+        Cola* nueva = new Cola(nombre, p, zs);
+        direccionDeColas.push_back(nueva);
+        contColas++;
+        return nueva;
+    }       //se inicializa una cola -> Cola* nombre = inicializarCola("nombreDeCola", prioridad); y guarda la direccion del puntero en la variable nombre
+};          //se agrega un cliente con cola->clientes.push(cliente)
+
+
+
+class PuestoServicio{
+public:
+    string nombre;
     bool ocupado;
-    bool esFin;
+    bool esFin; // si no le sigue nada
     int contClientes = 0;
     int tiempoOcupado=0;
     int cantidadDescansos=0;
@@ -40,29 +97,35 @@ public:
     ZonaSeguridad* zsAsociada;//asociacion simple
     vector<ZonaSeguridad*> zonasAsociadas;//asociacion multiple
 
-    PuestoServicio(bool o, bool fin){
+    PuestoServicio(string n, bool o, bool fin){
         ocupado = o;
         esFin = fin;
         zsAsociada = nullptr; //puesto inicio no tiene zona asociada
         contPS++;
     }
+    PuestoServicio* inicializarPS(string nombre, bool o, bool fin){
+        Cola* nueva = new PuestoServicio(nombre, o, fin);
+        direccionPS.push_back(nueva);
+        contPS++;
+        return nueva;
+    }
+    void TransferirCliente(){
 
-    void transferirCliente(){
-
-        if(clienteActual != nullptr){
-            if(esFin){
-                ocupado = false;
-                contClientes++;
-                return;
-            }else{
+        if(clienteActual != nullptr){ //si hay cliente
+            ocupado = false;
+            contClientes++;
+            if(!esFin){  // lleva a otra instancia
                 for(int i=0; i<nColaDestino;i++){   //aplicar RoundRobin
                 colaDestino[i]->push(clienteActual);
+
                 }
-                clienteActual = nullptr;
-                ocupado = false;
-            }
+            }else{
+                delete clienteActual;
+            }           
+            clienteActual = nullptr;
         }
     }
+    
     void AnadirDestinoCliente(queue<Cliente*>* direccion){
       colaDestino.push_back(direccion);
         nColaDestino++;
@@ -80,25 +143,24 @@ public:
         zonasAsociadas.push_back(zs);
     }
 
-    void recibirCliente();
+    
 };
 
 class ZonaSeguridad{
 public:
 
-    int id; //identificar zona o cliente?
     bool ocupado;
     Cliente* clienteActual;
-
     int t_ingreso;
     int t_salida;
 
     int contClientes;
-    int tiempoOcupada=0; //añadido para estadistica
+    int tiempoOcupada=0; //aï¿½adido para estadistica
 
     ZonaSeguridad(int identificador){
+    ZonaSeguridad(bool o){
         id = identificador;
-        ocupado = false;
+        ocupado = o;
         clienteActual = nullptr;
 
         t_ingreso = 0;
@@ -212,9 +274,7 @@ int descansoAplicado=0;
 nodo *frente = NULL; //primero
 nodo *fin = NULL;     //ultimo
 
-void enCola();
-void desencolar();
-unsigned int clientesCola();
+
 void mostrarEvento();
 void proximoEvento();
 unsigned int hora(horario h);
