@@ -20,6 +20,7 @@ typedef struct {
     unsigned int tMax;
 }horario;
 
+unsigned int proximoEvento(unsigned int tiempo);
 unsigned int hora(horario h);
 unsigned int proximaSalida();
 void procesarAbandono();
@@ -118,6 +119,7 @@ class Cola{
         bool ZS;    //true si el destino es un ZS, false para un PS
         vector<PuestoServicio*> destinosPS;
         vector<ZonaSeguridad*> destinosZS;
+        unsigned int t_ProximaLLegada;
 
         Cola(string n, bool p, bool zs){
             nombre = n;
@@ -185,9 +187,10 @@ public:
     bool Activo;
     bool descanso;
     bool esFin; // si no le sigue nada
+    unsigned int t_FinDeServicio;
     int contClientes = 0;
-    int tiempoInicioDescanso=0;
-    int tiempoFinDescanso=0;
+    int t_InicioDescanso=0;
+    int t_FinDescanso=0;
     int cantidadDescansos=0;
     Cliente* clienteActual;
     vector<Cola*> colaDestino;
@@ -268,6 +271,7 @@ void ZonaSeguridad::TransferirCliente(){
 
 int main(){
     srand(time(NULL));
+    int tiempo;
 
     printf("-------MODELO Y SIMULACION DE SISTEMAS------\n");
     int prioridad=1; //en desuso, solo esta para que compile el programa
@@ -324,10 +328,14 @@ int main(){
     printf("|CLT");
     if(desercion)printf("|CDC");
     printf("|\n");
-
-    while( habilitarClientesMax && (cont < clientesMaximos)  || habilitarHorasMax && ( horas[0]<horaFinSimulacion ) ){
-    //mostrarEvento(n, horas);
-    //proximoEvento(n, horas, flags);
+    unsigned int proximo = proximoEvento(tiempo);
+    for(tiempo = horaInicio ; habilitarClientesMax && (contGlobal <= clientesMaximos)  || habilitarHorasMax && ( tiempo<=horaFinSimulacion ); tiempo ++){
+    //Ejecucion en bucle
+        if(tiempo == proximo){
+            procesarEvento();
+            proximo = proximoEvento(tiempo);
+        }
+        if(tiempo % 60 == 0) mostrarEvento();
     }
     if(habilitarHorasMax){
     unsigned int siguiente=INT_MAX;
@@ -360,6 +368,39 @@ unsigned int hora(horario h){
     }
 }
 
+unsigned int proximoEvento(unsigned int tiempo){
+    unsigned int siguiente = INT_MAX;
+
+    for(auto cola : direccionDeColas){
+        if(cola->t_proximaLlegada > tiempo &&cola->t_proximaLlegada < siguiente){
+        siguiente = cola->t_proximaLlegada;
+        }
+        for(auto cliente : cola->clientes){
+            if(cliente->tSalidaCola > tiempo && cliente->tSalidaCola < siguiente){
+            siguiente =cliente->tSalidaCola;
+            }
+        }
+    }
+
+    for(auto ps : direccionPS){
+    if(ps->t_FinDeServicio > tiempo && ps->t_FinDeServicio < siguiente){
+        siguiente = ps->t_FinDeServicio;
+    }
+    if(ps->t_InicioDescanso > tiempo && ps->t_InicioDescanso < siguiente){
+        siguiente = ps->t_InicioDescanso;
+    }
+    if(ps->t_FinDescanso > tiempo && ps->t_FinDescanso < siguiente){
+        siguiente = ps->t_FinDescanso;
+    }
+    }
+
+    for(auto zs : direccionesZS){
+        if(zs->t_Salida > tiempo && zs->t_Salida < siguiente){
+            siguiente = zs->t_Salida;
+        }
+    }
+
+}
 /*void proximoEvento(int n, int v[n], int f[5]){
 
     unsigned int siguiente = INT_MAX;
