@@ -405,8 +405,8 @@ void ZonaSeguridad::TransferirCliente(unsigned int tiempo){
 
 int main(){
     SimCSV::init();
-    int horaInicio=0;
     srand(time(NULL));
+    int horaInicio=0;
     int tiempo=horaInicio;
     bool habilitarHorasMax=true;   //si es 1 la simulacion se limita al numero de clientes, solo puede estar activo esta o habilitarClientesMax
     int horaFinSimulacion = 20*60;
@@ -424,13 +424,13 @@ int main(){
     Cola* ColaP = inicializarCola("Prioridad",true,false,false);
     ZonaSeguridad* ZS = InicializarZS("ZS",false,nullptr);
     PuestoServicio* PS = inicializarPS("PS",false, true,true,true, nullptr, tiempo);
-    //PuestoServicio* PS2 = inicializarPS("PS2",false, true,true,true, nullptr, tiempo);
+    PuestoServicio* PS2 = inicializarPS("PS2",false, true,true,true, nullptr, tiempo);
     FuenteClientes* Gen1 = inicializarFC(tiempo, 30);
     Gen1->AnadirDestino(ColaB);
     Gen1->AnadirDestino(ColaP);
     ColaB->AnadirDestinoZS(ZS);
     ZS->AnadirDestino(PS);
-    ColaP->AnadirDestinoZS(ZS);
+    ColaP->AnadirDestinoPS(PS2);
 
 
 
@@ -539,6 +539,7 @@ void procesarEvento(unsigned int tiempo){
     //DESCANSO
     for(auto ps : direccionPS){
         if(ps->descanso){
+            if(ps->t_InicioDescanso == tiempo) ps->cantidadDescansos++;
             if(ps->t_InicioDescanso == tiempo && ps->Activo){
                 ps->Activo = false;
                 unsigned int tDescanso = hora(descansan);

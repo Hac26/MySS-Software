@@ -111,13 +111,13 @@ class SimGUI:
         def col_width(name):
             n = name.lower()
             if n == "hora_actual":   return 90
-            if "llegada" in n:       return 110
+            if "llegada" in n:       return 130
             if "fin_serv" in n:      return 100
-            if "cant_cola" in n:     return 80
-            if "estado" in n:        return 70
-            if "desert" in n:        return 80
-            if "ocup" in n:          return 70
-            return 85
+            if "cant_cola" in n:     return 120
+            if "estado" in n:        return 90
+            if "desert" in n:        return 120
+            if "ocup" in n:          return 110
+            return 130
 
         for col in columns:
             label = col.replace("_", " ")
