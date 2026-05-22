@@ -12,7 +12,7 @@ class ZonaSeguridad;
 class PuestoServicio;
 class Cliente;
 class Cola;
-class FuenteCliente;
+class FuenteClientes;
 
 typedef struct {
     unsigned int var;
@@ -22,6 +22,7 @@ typedef struct {
 }horario;
 
 unsigned int proximoEvento(unsigned int tiempo);
+void procesarEvento(unsigned int tiempo);
 unsigned int hora(horario h);
 unsigned int proximaSalida();
 void cuatroSalidasSiguientes();
@@ -29,12 +30,30 @@ void mostrarHora(unsigned int segundos);
 void establecerTiempoParados(unsigned int s);
 bool establecerPrioridad(int probVal);
 
-vector<FuenteCliente*> direccionFC;
+vector<FuenteClientes*> direccionFC;
 vector<Cola*> direccionDeColas;
 vector<PuestoServicio*> direccionPS;
 vector<ZonaSeguridad*> direccionZS;     //guardan las direcciones de las colas, PS, ZS para que la interfaz grafica pueda acceder
 
 unsigned int idn=0;
+
+void AnadirDestinoZS(ZonaSeguridad* direccion);
+void AnadirDestinoPS(ZonaSeguridad* direccion);
+
+void AnadirDestino(Cola* destino);
+void TransferirCliente(unsigned int tiempo);
+FuenteClientes* inicializarFC(unsigned int tiempoLlegada, int probVal);
+
+PuestoServicio* obtenerPSDisponible();
+void TransferirCliente();
+void AnadirDestino(PuestoServicio* direccion);
+
+
+void TransferirCliente();
+void AnadirDestinoCliente(Cola* direccion);
+void TransferirCliente();
+ PuestoServicio* obtenerPSDisponible();
+
 
 //entrada por menu
 
@@ -120,11 +139,13 @@ class Cola{
         list<Cliente*> clientes;
         int clientesDesertados;
         bool prioridad;
+        bool desercion;
         bool ZS;    //true si el destino es un ZS, false para un PS
         vector<PuestoServicio*> destinosPS;
         int lastIndexPS = 0;
         vector<ZonaSeguridad*> destinosZS;
         int lastIndexZS = 0;
+
 
         Cola(string n, bool p, bool zs){
             nombre = n;
@@ -133,7 +154,7 @@ class Cola{
             clientesDesertados = 0;
         }
 
-        void TransferirCliente();
+        void TransferirCliente(unsigned int tiempo);
 
     void AnadirDestinoPS(PuestoServicio* direccion){
         destinosPS.push_back(direccion);// destinos no exite----> colaDestino
@@ -144,12 +165,7 @@ class Cola{
     }
 
 
-    Cola* inicializarCola(string nombre, bool p, bool zs){
-        Cola* nueva = new Cola(nombre, p, zs);
-        direccionDeColas.push_back(nueva);
-        contColas++;
-        return nueva;
-    }       //se inicializa una cola -> Cola* nombre = inicializarCola("nombreDeCola", prioridad); y guarda la direccion del puntero en la variable nombre
+           //se inicializa una cola -> Cola* nombre = inicializarCola("nombreDeCola", prioridad); y guarda la direccion del puntero en la variable nombre
 };          //se agrega un cliente con cola->clientes.push(cliente)
 
 class FuenteClientes{
@@ -160,8 +176,8 @@ class FuenteClientes{
         vector<Cola*> DestinosPrioritarios;
         int lastIndex = 0;
         int lastIndexPrioridad = 0;
-    
-    FuenteClientes(unsigned int tiempoLLegada, int probVal){
+
+    FuenteClientes(unsigned int tiempoLlegada, int probVal){
         t_ProximaLlegada = tiempoLlegada + hora(llegada);
         probabilidad = probVal;
     }
@@ -186,15 +202,10 @@ class FuenteClientes{
                 break;
             }
         }
-        t_ProximaLlegada = tiempo + hora(Llegada);
+        t_ProximaLlegada = tiempo + hora(llegada);
     }
-    FuenteClientes* inicializarFC(unsigned int tiempoLlegada, int probVal){
-        FuenteClientes* nueva = new FuenteClientes(tiempoLlegada, probVal)
-        contFC++;
-        direccionFC.push_back(nueva);
-        return nueva;
-    }
-}
+
+};
 class ZonaSeguridad{
 public:
     string nombre;
@@ -205,6 +216,7 @@ public:
     int contClientes;
     vector<PuestoServicio*> PSDestino;
     int lastIndex=0;
+    PuestoServicio* PSAsignado;
 
     int tiempoOcupada=0; //a�adido para estadistica
 
@@ -241,7 +253,6 @@ public:
     bool ocupado;
     bool Activo;
     bool descanso;
-    bool desercion;
     bool descansoAplicado;
     bool esFin; // si no le sigue nada
     unsigned int t_FinDeServicio;
@@ -255,23 +266,18 @@ public:
     int lastIndex=0;
     int lastIndexPrioridad=0;
 
-    PuestoServicio(string n, bool o, bool fin){
+    PuestoServicio(string n,bool o, bool act,bool des,bool fin, Cliente* actual){
         nombre = n;
         ocupado = o;
         esFin = fin;
-        contPS++;
-    }
-
-    PuestoServicio* inicializarPS(string n,bool o, bool act , bool des,bool fin, Cliente* actual){
-        PuestoServicio* nueva = new PuestoServicio(n, o, fin,);
         clienteActual = actual;
         Activo = act;
         descanso = des;
         if(descanso) descansoAplicado = true;
-        direccionPS.push_back(nueva);
         contPS++;
-        return nueva;
     }
+
+
 
     void TransferirCliente(){
 
@@ -310,37 +316,37 @@ public:
 
 
 
-void Cola::TransferirCliente(){
+void Cola::TransferirCliente(unsigned int tiempo){
             bool transferido = false;
             if(clientes.empty()){
-                return; 
+                return;
             }else {
-                Cliente* cliente = Cola.front();
+                Cliente* cliente = clientes.front();
                 if(ZS){
-                for(int i = 0; i < ZSDestino.size(); i++){
-                    int idx = (lastIndexZS + i) % ZSDestino.size();
-                    ZonaSeguridad* zs = ZSDestino[idx];
+                for(int i = 0; i < destinosZS.size(); i++){
+                    int idx = (lastIndexZS + i) % destinosZS.size();
+                    ZonaSeguridad* zs = destinosZS[idx];
                     PuestoServicio* ps = zs->obtenerPSDisponible();
                     if(!zs->ocupado &&ps != nullptr){
                         zs->clienteActual = cliente;
                         zs->ocupado = true;
                         zs->t_ingreso = tiempo;
                         zs->t_salida = tiempo + hora(seguridad);
-                        zs->ultimoPS = ps;
-                        lastIndexZS = (idx + 1) % ZSDestino.size();
+                        zs->PSAsignado = ps;
+                        lastIndexZS = (idx + 1) % destinosZS.size();
                         transferido = true;
                         break;
                     }
                 }
                 }else{
-                    for(int i = 0; i < PSDestino.size(); i++){
-                        int idx = (lastIndexPS + i) % PSDestino.size();
-                        PuestoServicio* ps = PSDestino[idx];
-                        if(!ps->ocupado && ps->activo){
+                    for(int i = 0; i < destinosPS.size(); i++){
+                        int idx = (lastIndexPS + i) % destinosPS.size();
+                        PuestoServicio* ps = destinosPS[idx];
+                        if(!ps->ocupado && ps->Activo){
                             ps->clienteActual = cliente;
                             ps->ocupado = true;
                             ps->t_FinDeServicio = tiempo + hora(servicio);
-                            lastIndexPS = (idx + 1) % PSDestino.size();
+                            lastIndexPS = (idx + 1) % destinosPS.size();
                             transferido = true;
                             break;
                         }
@@ -349,7 +355,7 @@ void Cola::TransferirCliente(){
                 }
             }
          if(transferido) clientes.pop_front();
-            
+
         }
 void ZonaSeguridad::TransferirCliente(){
         if(clienteActual != nullptr ){
@@ -373,32 +379,37 @@ void ZonaSeguridad::TransferirCliente(){
         PuestoServicio* ps =
             PSDestino[idx];
 
-        if(ps->activo && !ps->ocupado){
+        if(ps->Activo && !ps->ocupado){
             lastIndex = (idx + 1) % PSDestino.size();
             return ps;
         }
     }
     return nullptr;
     }
+    Cola* inicializarCola(string nombre, bool p, bool zs, bool desercion);
+    ZonaSeguridad* InicializarZS(string n, bool o, Cliente* c);
+    PuestoServicio* inicializarPS(string n,bool o, bool act,bool des,bool fin, Cliente* actual);
+    FuenteClientes* inicializarFC(unsigned int tiempoLlegada, int probVal);
 
 int main(){
+    int horaInicio=0;
     srand(time(NULL));
     int tiempo=0;
 
     printf("-------MODELO Y SIMULACION DE SISTEMAS------\n");
-    Cola* ColaB = inicializarCola("Cola", false, false);
+    Cola* ColaB = inicializarCola("Cola", false, false,false);
     PuestoServicio* PS = inicializarPS("PS",false, true,false,true, nullptr);
     FuenteClientes* Gen1 = inicializarFC(hora(llegada), 0);
     Gen1->AnadirDestino(ColaB);
     ColaB->AnadirDestinoPS(PS);
 
- 
-   
+
+
     unsigned int proximo = proximoEvento(tiempo);
     for(tiempo = horaInicio ; habilitarClientesMax && (contGlobal <= clientesMaximos)  || habilitarHorasMax && ( tiempo<=horaFinSimulacion ); tiempo ++){
     //Ejecucion en bucle
         if(tiempo == proximo){
-            procesarEvento();
+            procesarEvento(tiempo);
             proximo = proximoEvento(tiempo);
         }
         if(tiempo % 60 == 0){
@@ -406,7 +417,7 @@ int main(){
             //mostrarEvento();
         }
     }
-    
+
         //mostrarEvento();
 }
 
@@ -422,35 +433,37 @@ unsigned int hora(horario h){
 unsigned int proximoEvento(unsigned int tiempo){
     unsigned int siguiente = INT_MAX;
 
-    for(auto cola : direccionDeColas){
-        if(cola->t_proximaLlegada > tiempo &&cola->t_proximaLlegada < siguiente){
-        siguiente = cola->t_proximaLlegada;
+    for(auto FC : direccionFC){ //LLegadas
+        if(FC->t_ProximaLlegada > tiempo &&FC->t_ProximaLlegada < siguiente){
+        siguiente = FC->t_ProximaLlegada;
         }
-        for(auto cliente : cola->clientes){
-            if(cliente->tSalidaCola > tiempo && cliente->tSalidaCola < siguiente){
-            siguiente =cliente->tSalidaCola;
+    }
+    for (auto cola : direccionDeColas){
+        for(auto cliente : cola->clientes){//deserciones
+            if(cliente->t_salidaCola > tiempo && cliente->t_salidaCola < siguiente){
+            siguiente =cliente->t_salidaCola;
             }
         }
     }
 
     for(auto ps : direccionPS){
     if(ps->t_FinDeServicio > tiempo && ps->t_FinDeServicio < siguiente){
-        siguiente = ps->t_FinDeServicio;
+        siguiente = ps->t_FinDeServicio; //Fin de servicio
     }
     if(ps->t_InicioDescanso > tiempo && ps->t_InicioDescanso < siguiente){
-        siguiente = ps->t_InicioDescanso;
+        siguiente = ps->t_InicioDescanso; //InicioDescanso
     }
     if(ps->t_FinDescanso > tiempo && ps->t_FinDescanso < siguiente){
-        siguiente = ps->t_FinDescanso;
+        siguiente = ps->t_FinDescanso; //Fin del descanso
     }
     }
 
-    for(auto zs : direccionesZS){
-        if(zs->t_Salida > tiempo && zs->t_Salida < siguiente){
-            siguiente = zs->t_Salida;
+    for(auto zs : direccionZS){
+        if(zs->t_salida > tiempo && zs->t_salida < siguiente){
+            siguiente = zs->t_salida;
         }
     }
-
+    return siguiente;
 }
 void procesarEvento(unsigned int tiempo){
     //LLEGADAS
@@ -461,11 +474,11 @@ void procesarEvento(unsigned int tiempo){
     }
     //DESERCIONES
     for(auto cola : direccionDeColas){
-        if(desercion){
+        if(cola->desercion){
             for (auto it = cola->clientes.begin(); it != cola->clientes.end();){
-                if ((*it)->tSalidaCola == tiempo){
+                if ((*it)->t_salidaCola == tiempo){
                     Cliente *aux = *it;
-                    cola->contDeserciones++;
+                    cola->clientesDesertados++;
                     it = cola->clientes.erase(it);
                     delete aux;
                 }else{
@@ -485,14 +498,14 @@ void procesarEvento(unsigned int tiempo){
     for (auto zs : direccionZS){
         if(zs->ocupado && zs->t_salida == tiempo ){
             zs->TransferirCliente(); //actualizar el roundrobin de las funciones
-            zs->ocupado = false; 
+            zs->ocupado = false;
         }
     }
     //DESCANSO
     for(auto ps : direccionPS){
         if(ps->descanso){
-            if(ps->t_InicioDescanso == tiempo && ps->activo){
-                ps->activo = false;
+            if(ps->t_InicioDescanso == tiempo && ps->Activo){
+                ps->Activo = false;
                 unsigned int tDescanso = hora(descansan);
                 ps->t_FinDescanso = ps->t_InicioDescanso + tDescanso;
                 if(ps->ocupado && !ps->descansoAplicado){
@@ -501,15 +514,15 @@ void procesarEvento(unsigned int tiempo){
                 }
             }
             if (ps->t_FinDescanso == tiempo){ //FIN DESCANSO
-                ps->activo = true;
+                ps->Activo = true;
                 ps->t_InicioDescanso = tiempo + hora(descan);
                 ps->descansoAplicado = false;
             }
         }
     }
     //TRANSFERENCIA DE COLAS
-    for(auto cola : direccionColas){
-    cola->TransferirCliente();
+    for(auto cola : direccionDeColas){
+    cola->TransferirCliente(tiempo);
     }
 }
 
@@ -523,21 +536,7 @@ void mostrarHora(unsigned int segundos)//11 no es necesario modificar
     printf("%03d:%02d:%02d|", h, m, s);}
 
 
-void establecerTiempoParados(unsigned int s){
 
-    queue<Cliente*> auxiliar;
-
-    while(!cola.empty()){
-
-        Cliente* temp = cola.front();
-        cola.pop();
-
-        temp->t_salidaCola = hora(deser) - s;
-
-        auxiliar.push(temp);
-     }
-    cola = auxiliar;
-}
 bool establecerPrioridad(int probVal){
 
     int probabilidad = rand() % 101;
@@ -548,3 +547,22 @@ bool establecerPrioridad(int probVal){
         return true; // Cliente tipo A
     }
 }
+Cola* inicializarCola(string nombre, bool p, bool zs, bool desercion){
+        Cola* nueva = new Cola(nombre, p, zs);
+        desercion = desercion;
+        direccionDeColas.push_back(nueva);
+        contColas++;
+        return nueva;
+    }
+FuenteClientes* inicializarFC(unsigned int tiempoLlegada, int probVal){
+        FuenteClientes* nueva = new FuenteClientes(tiempoLlegada, probVal);
+        contFC++;
+        direccionFC.push_back(nueva);
+        return nueva;
+    }
+PuestoServicio* inicializarPS(string n,bool o, bool act,bool des,bool fin, Cliente* actual){
+        PuestoServicio* nueva = new PuestoServicio(n, o, act, des, fin, actual);
+        direccionPS.push_back(nueva);
+        contPS++;
+        return nueva;
+    }
