@@ -583,9 +583,10 @@ void calcularYMostrarEstadisticas(unsigned int tiempoTotal) {
 
     // 3. Recopilar datos de todos los Puestos de Servicio (PS)
     for (auto ps : direccionPS) {
+        if (ps->esFin == true){
         contGlobal += ps->contClientes;
     }
-
+    }
     // 4. Recopilar datos de todas las Zonas de Seguridad (ZS)
     for (auto zs : direccionZS) {
         totalTiempoOcupadoZS += zs->tiempoOcupada;
