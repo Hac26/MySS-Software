@@ -23,6 +23,7 @@ typedef struct {
 
 unsigned int proximoEvento(unsigned int tiempo);
 void procesarEvento(unsigned int tiempo);
+void calcularEstadisticasGlobales();
 unsigned int hora(horario h);
 unsigned int proximaSalida();
 void cuatroSalidasSiguientes();
@@ -34,6 +35,7 @@ vector<FuenteClientes*> direccionFC;
 vector<Cola*> direccionDeColas;
 vector<PuestoServicio*> direccionPS;
 vector<ZonaSeguridad*> direccionZS;     //guardan las direcciones de las colas, PS, ZS para que la interfaz grafica pueda acceder
+vector<bool> flags; //llegada -> 0, fs -> 1, descanso->2, fin del descanso ->3, desercion ->4,
 
 unsigned int idn=0;
 
@@ -58,41 +60,41 @@ void TransferirCliente();
 //entrada por menu
 
 horario llegada = {
-    .var = 1,
-    .t = 60,
+    .var = 0,
+    .t = 45,
     .tMin = 50,
     .tMax = 70,
 };
 horario servicio = {
-    .var = 1,
-    .t = 60,
+    .var = 0,
+    .t = 50,
     .tMin = 50,
     .tMax = 70,
 };
 
 horario descan = {
-    .var = 1,
+    .var = 0,
     .t = 60,
     .tMin = 50,
     .tMax = 70,
 };
 horario descansan = {
-    .var = 1,
+    .var = 0,
     .t = 60,
     .tMin = 50,
     .tMax = 70,
 };
 
 horario deser = {
-    .var = 1,
+    .var = 0,
     .t = 600,
     .tMin = 50,
     .tMax = 70,
 };
 
 horario seguridad = {
-    .var = 1,
-    .t = 60,
+    .var = 0,
+    .t = 30,
     .tMin = 50,
     .tMax = 70,
 };
@@ -111,8 +113,7 @@ int contPS = 0;
 int contZS = 0;
 int contFC = 0;
 int contColas = 0;
-int habilitarHorasMax=0;   //si es 1 la simulacion se limita al numero de clientes, solo puede estar activo esta o habilitarClientesMax
-int horaFinSimulacion;
+
 
 //fin de entrada por menu
 
@@ -147,7 +148,8 @@ class Cola{
         int lastIndexZS = 0;
 
 
-        Cola(string n, bool p, bool zs){
+        Cola(string n, bool p, bool zs, bool deser){
+            desercion = deser;
             nombre = n;
             prioridad = p;
             ZS = zs;
@@ -230,17 +232,11 @@ public:
         contClientes = 0;
     }
 
-    ZonaSeguridad* InicializarZS(string n, bool o, Cliente* c){
-        ZonaSeguridad* nuevo = new ZonaSeguridad(n, o, c);
-        direccionZS.push_back(nuevo);
-        contZS++;
-        return nuevo;
-    }
 
     PuestoServicio* obtenerPSDisponible();
 
 
-    void TransferirCliente();
+    void TransferirCliente(unsigned int tiempo);
 
     void AnadirDestino(PuestoServicio* direccion){
      PSDestino.push_back(direccion);
@@ -266,14 +262,27 @@ public:
     int lastIndex=0;
     int lastIndexPrioridad=0;
 
-    PuestoServicio(string n,bool o, bool act,bool des,bool fin, Cliente* actual){
+    PuestoServicio(string n,bool o, bool act,bool des,bool fin, Cliente* actual, unsigned int tiempo){
         nombre = n;
         ocupado = o;
         esFin = fin;
         clienteActual = actual;
         Activo = act;
         descanso = des;
-        if(descanso) descansoAplicado = true;
+        descansoAplicado = false;
+        if(descanso) {
+                if(Activo){
+                descansoAplicado = false;
+                t_InicioDescanso = tiempo+hora(descan);
+                }else{
+                    unsigned int tDescanso = hora(descansan);
+                    if(ocupado){
+                        t_FinDeServicio += tDescanso;
+                        descansoAplicado = true;
+                    }
+                    t_FinDescanso = tiempo + tDescanso;
+                }
+        }
         contPS++;
     }
 
@@ -357,16 +366,18 @@ void Cola::TransferirCliente(unsigned int tiempo){
          if(transferido) clientes.pop_front();
 
         }
-void ZonaSeguridad::TransferirCliente(){
-        if(clienteActual != nullptr ){
-            PSDestino[lastIndex]->clienteActual = this->clienteActual;
-            lastIndex++;
-            if(lastIndex == PSDestino.size()) lastIndex = 0;
-        }
-            ocupado = false;
+void ZonaSeguridad::TransferirCliente(unsigned int tiempo){
+        if(clienteActual == nullptr) return;
+        if(PSAsignado == nullptr)return;
+        if(PSAsignado->ocupado || !PSAsignado->Activo) return;
+            PSAsignado->clienteActual = clienteActual;
+            PSAsignado->ocupado = true;
+            PSAsignado->t_FinDeServicio = tiempo + hora(servicio);
+            tiempoOcupada += (t_salida - t_ingreso);
+            contClientes++;
             clienteActual = nullptr;
-        tiempoOcupada += (t_salida - t_ingreso);
-        contClientes++;
+            ocupado = false;
+            PSAsignado = nullptr;
     }
 
     PuestoServicio* ZonaSeguridad::obtenerPSDisponible(){
@@ -388,33 +399,54 @@ void ZonaSeguridad::TransferirCliente(){
     }
     Cola* inicializarCola(string nombre, bool p, bool zs, bool desercion);
     ZonaSeguridad* InicializarZS(string n, bool o, Cliente* c);
-    PuestoServicio* inicializarPS(string n,bool o, bool act,bool des,bool fin, Cliente* actual);
+    PuestoServicio* inicializarPS(string n,bool o, bool act,bool des,bool fin, Cliente* actual,unsigned int tiempo);
     FuenteClientes* inicializarFC(unsigned int tiempoLlegada, int probVal);
 
+#include "simqueue_csv.h"
+
 int main(){
-    int horaInicio=0;
+    SimCSV::init();
     srand(time(NULL));
-    int tiempo=0;
+    int horaInicio=0;
+    int tiempo=horaInicio;
+    bool habilitarHorasMax=true;   //si es 1 la simulacion se limita al numero de clientes, solo puede estar activo esta o habilitarClientesMax
+    int horaFinSimulacion = 20*60;
+    bool habilitarClientesMax=false; //si es 1 la simulacion se limita al numero de clientes
+    int clientesMaximos=10;
 
     printf("-------MODELO Y SIMULACION DE SISTEMAS------\n");
-    Cola* ColaB = inicializarCola("Cola", false, false,false);
-    PuestoServicio* PS = inicializarPS("PS",false, true,false,true, nullptr);
-    FuenteClientes* Gen1 = inicializarFC(hora(llegada), 0);
+    /*      Machete
+    Cola* inicializarCola(string nombre, bool prioridad, bool zonaseguridad, bool desercion);
+    ZonaSeguridad* InicializarZS(string n, bool o, Cliente* c);
+    PuestoServicio* inicializarPS(string n,bool ocupado, bool activo,bool descanso,bool fin, Cliente* actual, unsigned int tiempo);
+    FuenteClientes* inicializarFC(unsigned int tiempoLlegada, int probabilidadClientePrioritario); */
+
+    Cola* ColaB = inicializarCola("Cola", false, true,true);
+    Cola* ColaP = inicializarCola("Prioridad",true,false,false);
+    ZonaSeguridad* ZS = InicializarZS("ZS",false,nullptr);
+    PuestoServicio* PS = inicializarPS("PS",false, true,true,true, nullptr, tiempo);
+    //PuestoServicio* PS2 = inicializarPS("PS2",false, true,true,true, nullptr, tiempo);
+    FuenteClientes* Gen1 = inicializarFC(tiempo, 30);
     Gen1->AnadirDestino(ColaB);
-    ColaB->AnadirDestinoPS(PS);
+    Gen1->AnadirDestino(ColaP);
+    ColaB->AnadirDestinoZS(ZS);
+    ZS->AnadirDestino(PS);
+    //ColaP->AnadirDestinoPS(PS2);
 
 
 
     unsigned int proximo = proximoEvento(tiempo);
-    for(tiempo = horaInicio ; habilitarClientesMax && (contGlobal <= clientesMaximos)  || habilitarHorasMax && ( tiempo<=horaFinSimulacion ); tiempo ++){
+    mostrarEvento(tiempo);
+    for(tiempo = horaInicio ; habilitarClientesMax && (contGlobal < clientesMaximos)  || habilitarHorasMax && ( tiempo<=horaFinSimulacion ); tiempo ++){
     //Ejecucion en bucle
         if(tiempo == proximo){
             procesarEvento(tiempo);
             proximo = proximoEvento(tiempo);
+            calcularEstadisticasGlobales();
+            mostrarEvento(tiempo);
         }
         if(tiempo % 60 == 0){
-            //calcularEstadisticasGlobales();
-            //mostrarEvento();
+
         }
     }
 
@@ -489,27 +521,32 @@ void procesarEvento(unsigned int tiempo){
     }
     //LIBERAR PS
     for (auto ps : direccionPS){
-        if(ps->ocupado && ps->t_FinDeServicio == tiempo ){
+        if(ps->ocupado && ps->t_FinDeServicio <= tiempo ){
         ps->TransferirCliente();
         ps->ocupado = false;
         }
     }
     //LIBERAR ZS
     for (auto zs : direccionZS){
-        if(zs->ocupado && zs->t_salida == tiempo ){
-            zs->TransferirCliente(); //actualizar el roundrobin de las funciones
+        if(zs->ocupado && zs->t_salida <= tiempo ){
+                if(zs->PSAsignado != nullptr && !zs->PSAsignado->ocupado && zs->PSAsignado->Activo){
+            zs->TransferirCliente(tiempo); //actualizar el roundrobin de las funciones
             zs->ocupado = false;
+            zs->clienteActual = nullptr;
+            zs->PSAsignado = nullptr;
+        }
         }
     }
     //DESCANSO
     for(auto ps : direccionPS){
         if(ps->descanso){
+            if(ps->t_InicioDescanso == tiempo) ps->cantidadDescansos++;
             if(ps->t_InicioDescanso == tiempo && ps->Activo){
                 ps->Activo = false;
                 unsigned int tDescanso = hora(descansan);
                 ps->t_FinDescanso = ps->t_InicioDescanso + tDescanso;
                 if(ps->ocupado && !ps->descansoAplicado){
-                     ps->t_FinDeServicio = tiempo + tDescanso;
+                     ps->t_FinDeServicio += tDescanso;
                      ps->descansoAplicado = true;
                 }
             }
@@ -548,8 +585,7 @@ bool establecerPrioridad(int probVal){
     }
 }
 Cola* inicializarCola(string nombre, bool p, bool zs, bool desercion){
-        Cola* nueva = new Cola(nombre, p, zs);
-        desercion = desercion;
+        Cola* nueva = new Cola(nombre, p, zs, desercion);
         direccionDeColas.push_back(nueva);
         contColas++;
         return nueva;
@@ -560,9 +596,40 @@ FuenteClientes* inicializarFC(unsigned int tiempoLlegada, int probVal){
         direccionFC.push_back(nueva);
         return nueva;
     }
-PuestoServicio* inicializarPS(string n,bool o, bool act,bool des,bool fin, Cliente* actual){
-        PuestoServicio* nueva = new PuestoServicio(n, o, act, des, fin, actual);
+PuestoServicio* inicializarPS(string n,bool o, bool act,bool des,bool fin, Cliente* actual, unsigned int tiempo){
+        PuestoServicio* nueva = new PuestoServicio(n, o, act, des, fin, actual, tiempo);
         direccionPS.push_back(nueva);
         contPS++;
         return nueva;
     }
+    ZonaSeguridad* InicializarZS(string n, bool o, Cliente* c){
+        ZonaSeguridad* nuevo = new ZonaSeguridad(n, o, c);
+        direccionZS.push_back(nuevo);
+        contZS++;
+        return nuevo;
+    }
+void calcularEstadisticasGlobales() {
+    // 1. Limpiar e inicializar contadores para esta ejecucion
+    contGlobal = 0;
+    contDesertoresGlobal = 0;
+    long long totalTiempoOcupadoZS = 0;
+    int totalClientesEnColasActuales = 0;
+
+    // 2. Recopilar datos de todas las Colas
+    for (auto cola : direccionDeColas) {
+        contDesertoresGlobal += cola->clientesDesertados;
+        totalClientesEnColasActuales += cola->clientes.size();
+    }
+
+    // 3. Recopilar datos de todos los Puestos de Servicio (PS)
+    for (auto ps : direccionPS) {
+        if (ps->esFin == true){
+        contGlobal += ps->contClientes;
+    }
+    }
+    // 4. Recopilar datos de todas las Zonas de Seguridad (ZS)
+    for (auto zs : direccionZS) {
+        totalTiempoOcupadoZS += zs->tiempoOcupada;
+    }
+
+}

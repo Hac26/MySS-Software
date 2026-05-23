@@ -1,0 +1,4 @@
+Para ejecutar la interfaz grafica:
+1.Ejecute el archivo "gui_sim.py" en la consola con el comando Python gui_sim.py
+2.Ejecute el archivo "main.exe"
+3.Los datos del programa se mostraran en la pestaña de Python abierta.
