@@ -35,6 +35,7 @@ vector<FuenteClientes*> direccionFC;
 vector<Cola*> direccionDeColas;
 vector<PuestoServicio*> direccionPS;
 vector<ZonaSeguridad*> direccionZS;     //guardan las direcciones de las colas, PS, ZS para que la interfaz grafica pueda acceder
+vector<bool> flags; //llegada -> 0, fs -> 1, descanso->2, fin del descanso ->3, desercion ->4,
 
 unsigned int idn=0;
 
@@ -424,13 +425,13 @@ int main(){
     Cola* ColaP = inicializarCola("Prioridad",true,false,false);
     ZonaSeguridad* ZS = InicializarZS("ZS",false,nullptr);
     PuestoServicio* PS = inicializarPS("PS",false, true,true,true, nullptr, tiempo);
-    PuestoServicio* PS2 = inicializarPS("PS2",false, true,true,true, nullptr, tiempo);
+    //PuestoServicio* PS2 = inicializarPS("PS2",false, true,true,true, nullptr, tiempo);
     FuenteClientes* Gen1 = inicializarFC(tiempo, 30);
     Gen1->AnadirDestino(ColaB);
     Gen1->AnadirDestino(ColaP);
     ColaB->AnadirDestinoZS(ZS);
     ZS->AnadirDestino(PS);
-    ColaP->AnadirDestinoPS(PS2);
+    //ColaP->AnadirDestinoPS(PS2);
 
 
 
